@@ -33,7 +33,7 @@ docs/<category>.md                <- guide: concepts, common questions, gotchas,
 1. Read `docs/<category>.md`.
 2. Open an exercise in `exercises/`, read the Javadoc, implement it.
 3. `./run.sh <category>` until green.
-4. Compare with `solutions/`. Read the `// TWIST:` comments there.
+4. Compare with `solutions/`. Every method there has a Javadoc explaining what it does, how it works step by step, an example and its complexity. Read the `// TWIST:` comments too.
 
 `-Dsolutions` just swaps the compiled source folder, so the same tests run against the reference code.
 

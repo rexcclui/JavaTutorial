@@ -9,8 +9,23 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 
+/**
+ * Graph algorithms on a graph stored as an adjacency list: Map from a node to the list of its neighbours.
+ *
+ * In the complexity notes, V = number of nodes (vertices) and E = number of edges (links between nodes).
+ */
 public class GraphOps {
 
+    /**
+     * Order in which breadth-first search visits nodes from start: nearest nodes first.
+     *
+     * How it works:
+     *   1. Put start in a queue and in a 'seen' set.
+     *   2. Repeatedly take the front node, record it, and add each unseen neighbour to the queue.
+     *   3. A node is marked seen when it is ADDED to the queue, so it can never be queued twice (this also handles cycles).
+     *
+     * Complexity: time O(V + E), space O(V)
+     */
     public static List<Integer> bfs(Map<Integer, List<Integer>> graph, int start) {
         List<Integer> order = new ArrayList<>();
         Set<Integer> seen = new HashSet<>(List.of(start));
@@ -25,18 +40,45 @@ public class GraphOps {
         return order;
     }
 
+    /**
+     * Order in which depth-first search (pre-order) visits nodes from start: go as deep as possible first.
+     *
+     * How it works:
+     *   1. Delegates to a recursive helper that shares the seen set and the output list.
+     *
+     * Complexity: time O(V + E), space O(V)
+     */
     public static List<Integer> dfs(Map<Integer, List<Integer>> graph, int start) {
         List<Integer> order = new ArrayList<>();
         dfs(graph, start, new HashSet<>(), order);
         return order;
     }
 
+    /**
+     * Recursive helper for dfs.
+     *
+     * How it works:
+     *   1. If the node was already seen, stop (prevents infinite loops on cycles).
+     *   2. Record the node, then run dfs on each neighbour in order.
+     *
+     * Complexity: time O(V + E)
+     */
     private static void dfs(Map<Integer, List<Integer>> g, int node, Set<Integer> seen, List<Integer> order) {
         if (!seen.add(node)) return;
         order.add(node);
         for (int nb : g.getOrDefault(node, List.of())) dfs(g, nb, seen, order);
     }
 
+    /**
+     * Fewest edges between src and dst in an unweighted graph, or -1 if unreachable.
+     *
+     * How it works:
+     *   1. BFS visits nodes in rounds: round 1 = nodes 1 edge away, round 2 = 2 edges away, and so on.
+     *   2. Count the rounds ('dist'). The first time dst appears as a neighbour, dist is the answer.
+     *   3. If the queue empties without finding dst, there is no path.
+     *
+     * Complexity: time O(V + E), space O(V)
+     */
     public static int shortestPath(Map<Integer, List<Integer>> graph, int src, int dst) {
         if (src == dst) return 0;
         Set<Integer> seen = new HashSet<>(List.of(src));
@@ -55,6 +97,16 @@ public class GraphOps {
         return -1;
     }
 
+    /**
+     * Number of separate groups of '1' cells in a grid; cells connect up, down, left and right.
+     *
+     * How it works:
+     *   1. Scan every cell. When a '1' has not been visited yet, a NEW island starts: count it.
+     *   2. Flood fill from that cell to mark every connected '1' as visited so it is not counted again.
+     *   3. A separate 'seen' array is used, so the input grid is not modified.
+     *
+     * Complexity: time O(rows * cols), space O(rows * cols)
+     */
     public static int numIslands(char[][] grid) {
         if (grid.length == 0) return 0;
         boolean[][] seen = new boolean[grid.length][grid[0].length];
@@ -70,6 +122,16 @@ public class GraphOps {
         return count;
     }
 
+    /**
+     * Marks every land cell connected to (r, c) as visited.
+     *
+     * How it works:
+     *   1. Use an explicit stack of cells instead of recursion, so a huge island cannot cause StackOverflowError.
+     *   2. Pop a cell; skip it if it is outside the grid, is water, or was visited.
+     *   3. Mark it visited and push its four neighbours.
+     *
+     * Complexity: O(cells in the island)
+     */
     private static void flood(char[][] g, boolean[][] seen, int r, int c) {
         Deque<int[]> stack = new ArrayDeque<>();      // explicit stack: no StackOverflow on big grids
         stack.push(new int[] {r, c});
@@ -85,7 +147,19 @@ public class GraphOps {
         }
     }
 
-    /** Kahn's algorithm (topological sort by in-degree). */
+    /**
+     * True if all n courses can be completed given prerequisite pairs [course, prerequisite] (the graph has no cycle).
+     *
+     * How it works:
+     *   1. Build, for each course, the list of courses that depend on it, and count each course's unmet prerequisites (in-degree).
+     *   2. Start a queue with courses that have no prerequisites.
+     *   3. Take a course, count it as done, and reduce the in-degree of the courses that depend on it; queue those that reach 0 (Kahn's algorithm / topological sort).
+     *   4. If every course got done, there is no cycle; otherwise some courses wait on each other forever.
+     *
+     * Example: n=2, {{1,0}}  ->  true;  {{1,0},{0,1}}  ->  false
+     *
+     * Complexity: time O(V + E), space O(V + E)
+     */
     public static boolean canFinish(int n, int[][] prerequisites) {
         List<List<Integer>> next = new ArrayList<>();
         int[] indegree = new int[n];

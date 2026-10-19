@@ -8,6 +8,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
 class StringPracticeTest {
+    // PURPOSE: Palindrome check ignoring case, spaces and punctuation, including empty and symbol-only input (two-pointer technique).
     @ParameterizedTest
     @CsvSource({
         "'A man, a plan, a canal: Panama', true",
@@ -20,12 +21,14 @@ class StringPracticeTest {
         assertThat(StringPractice.isPalindrome(input)).isEqualTo(expected);
     }
 
+    // PURPOSE: Reverse word order and collapse extra spaces (split/trim handling, a very common warm-up question).
     @Test
     void reverseWords() {
         assertThat(StringPractice.reverseWords("  the sky  is blue ")).isEqualTo("blue is sky the");
         assertThat(StringPractice.reverseWords("one")).isEqualTo("one");
     }
 
+    // PURPOSE: Anagram check: same letters in a different order, and different lengths must fail fast.
     @Test
     void anagram() {
         assertThat(StringPractice.isAnagram("listen", "silent")).isTrue();
@@ -33,6 +36,7 @@ class StringPracticeTest {
         assertThat(StringPractice.isAnagram("ab", "abc")).isFalse();
     }
 
+    // PURPOSE: Find the first character that appears exactly once; empty result when every character repeats (counting with insertion order).
     @Test
     void firstNonRepeated() {
         assertThat(StringPractice.firstNonRepeated("swiss")).isEqualTo(Optional.of('w'));

@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import org.junit.jupiter.api.Test;
 
 class MinStackTest {
+    // PURPOSE: min() is correct after every push/pop, including when the minimum value is pushed twice.
     @Test
     void tracksMinimumThroughPushAndPop() {
         MinStack s = new MinStack();
@@ -20,6 +21,7 @@ class MinStackTest {
         assertThat(s.peek()).isEqualTo(5);
     }
 
+    // PURPOSE: Reading or popping an empty stack throws IllegalStateException; isEmpty() is true.
     @Test
     void emptyThrows() {
         MinStack s = new MinStack();

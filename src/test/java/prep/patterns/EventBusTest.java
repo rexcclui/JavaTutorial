@@ -7,6 +7,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class EventBusTest {
+    // PURPOSE: Observer: listeners of a topic are called in subscription order; other topics are not notified.
     @Test
     void deliversToTopicSubscribersInOrder() {
         EventBus bus = new EventBus();
@@ -18,6 +19,7 @@ class EventBusTest {
         assertThat(log).containsExactly("A:hi", "B:hi");
     }
 
+    // PURPOSE: The Runnable returned by subscribe() removes the listener.
     @Test
     void unsubscribeStopsDelivery() {
         EventBus bus = new EventBus();
@@ -29,6 +31,7 @@ class EventBusTest {
         assertThat(log).containsExactly("1");
     }
 
+    // PURPOSE: One listener throwing must not stop the remaining listeners from being notified.
     @Test
     void failingListenerDoesNotBlockOthers() {
         EventBus bus = new EventBus();
@@ -39,6 +42,7 @@ class EventBusTest {
         assertThat(log).containsExactly("ok");
     }
 
+    // PURPOSE: Unsubscribing during publish must not cause ConcurrentModificationException (copy-on-write list).
     @Test
     void listenerMayUnsubscribeItself() {
         EventBus bus = new EventBus();
@@ -51,6 +55,7 @@ class EventBusTest {
         assertThat(log).containsExactly("1", "second:1", "second:2");
     }
 
+    // PURPOSE: Publishing to a topic nobody listens to does nothing and does not throw.
     @Test
     void publishToUnknownTopicIsNoOp() {
         new EventBus().publish("nobody", "hello");

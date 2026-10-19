@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import prep.datastructures.LinkedListOps.Node;
 
 class LinkedListOpsTest {
+    // PURPOSE: Reverse a singly linked list: several nodes, a single node, and null.
     @Test
     void reverse() {
         assertThat(LinkedListOps.reverse(Node.of(1, 2, 3, 4)).toArray()).containsExactly(4, 3, 2, 1);
@@ -13,6 +14,7 @@ class LinkedListOpsTest {
         assertThat(LinkedListOps.reverse(null)).isNull();
     }
 
+    // PURPOSE: Floyd's tortoise-and-hare: false for a normal list, true after linking the tail back, false for null.
     @Test
     void hasCycle() {
         Node list = Node.of(1, 2, 3);
@@ -22,6 +24,7 @@ class LinkedListOpsTest {
         assertThat(LinkedListOps.hasCycle(null)).isFalse();
     }
 
+    // PURPOSE: Slow/fast pointers find the middle (second middle for even length) in one pass.
     @Test
     void middle() {
         assertThat(LinkedListOps.middle(Node.of(1, 2, 3)).val).isEqualTo(2);
@@ -29,6 +32,7 @@ class LinkedListOpsTest {
         assertThat(LinkedListOps.middle(Node.of(1)).val).isEqualTo(1);
     }
 
+    // PURPOSE: Merge two sorted lists into one sorted list; one side may be empty.
     @Test
     void mergeSorted() {
         assertThat(LinkedListOps.mergeSorted(Node.of(1, 4, 6), Node.of(2, 3, 7)).toArray())

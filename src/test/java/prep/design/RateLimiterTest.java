@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 class RateLimiterTest {
     private static final long SECOND = 1_000_000_000L;
 
+    // PURPOSE: Token bucket starts full: exactly `capacity` calls succeed immediately, the next is rejected.
     @Test
     void startsFullThenRejects() {
         AtomicLong clock = new AtomicLong();
@@ -18,6 +19,7 @@ class RateLimiterTest {
         assertThat(rl.tryAcquire()).isFalse();
     }
 
+    // PURPOSE: Tokens refill at the configured rate as the (fake) clock advances.
     @Test
     void refillsOverTime() {
         AtomicLong clock = new AtomicLong();
@@ -30,6 +32,7 @@ class RateLimiterTest {
         assertThat(rl.tryAcquire()).isFalse();
     }
 
+    // PURPOSE: Waiting a long time never stores more than `capacity` tokens.
     @Test
     void neverExceedsCapacity() {
         AtomicLong clock = new AtomicLong();
@@ -40,6 +43,7 @@ class RateLimiterTest {
         assertThat(rl.tryAcquire()).isFalse();
     }
 
+    // PURPOSE: 8 threads race on a frozen clock; exactly `capacity` acquisitions are granted in total.
     @Test
     void threadSafeNeverGrantsMoreThanCapacity() throws Exception {
         AtomicLong clock = new AtomicLong();   // frozen time: exactly `capacity` grants allowed

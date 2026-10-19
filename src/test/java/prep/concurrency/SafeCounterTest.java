@@ -7,6 +7,7 @@ import java.util.List;
 import org.junit.jupiter.api.RepeatedTest;
 
 class SafeCounterTest {
+    // PURPOSE: 8 threads x 50,000 increments must total exactly 400,000. A plain count++ loses updates (race condition). Repeated 5 times to expose flakiness.
     @RepeatedTest(5)
     void noLostUpdates() throws Exception {
         SafeCounter counter = new SafeCounter();

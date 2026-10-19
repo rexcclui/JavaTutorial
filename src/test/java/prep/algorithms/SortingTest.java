@@ -15,6 +15,7 @@ class SortingTest {
         return a;
     }
 
+    // PURPOSE: Your merge sort gives the same result as Arrays.sort on 500 random numbers with duplicates and negatives.
     @Test
     void mergeSortMatchesJdk() {
         int[] a = sample(), expected = a.clone();
@@ -22,6 +23,7 @@ class SortingTest {
         assertThat(Sorting.mergeSort(a)).containsExactly(expected);
     }
 
+    // PURPOSE: Your quick sort gives the same result as Arrays.sort and sorts in place.
     @Test
     void quickSortMatchesJdk() {
         int[] a = sample(), expected = a.clone();
@@ -29,6 +31,7 @@ class SortingTest {
         assertThat(Sorting.quickSort(a)).containsExactly(expected);
     }
 
+    // PURPOSE: Empty, single element, all equal and reverse-sorted input.
     @Test
     void edgeCases() {
         assertThat(Sorting.mergeSort(new int[] {})).isEmpty();
@@ -37,6 +40,7 @@ class SortingTest {
         assertThat(Sorting.mergeSort(new int[] {5, 4, 3, 2, 1})).containsExactly(1, 2, 3, 4, 5);
     }
 
+    // PURPOSE: k-th largest value (heap or quickselect) and an exception when k is out of range.
     @Test
     void kthLargest() {
         assertThat(Sorting.kthLargest(new int[] {3, 2, 1, 5, 6, 4}, 2)).isEqualTo(5);

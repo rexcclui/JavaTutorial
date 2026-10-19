@@ -7,6 +7,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 class ParkingLotTest {
+    // PURPOSE: Slots are assigned 1,2,3... lowest first, and a full lot returns empty.
     @Test
     void assignsLowestFreeSlot() {
         ParkingLot lot = new ParkingLot(3);
@@ -17,6 +18,7 @@ class ParkingLotTest {
         assertThat(lot.park("D")).isEmpty();
     }
 
+    // PURPOSE: After cars leave, the lowest free slot number is reused first.
     @Test
     void reusesFreedSlotsLowestFirst() {
         ParkingLot lot = new ParkingLot(3);
@@ -28,11 +30,13 @@ class ParkingLotTest {
         assertThat(lot.slotOf("A")).isEmpty();
     }
 
+    // PURPOSE: Removing a car that is not parked returns empty instead of throwing.
     @Test
     void leaveUnknownPlate() {
         assertThat(new ParkingLot(1).leave("ghost")).isEmpty();
     }
 
+    // PURPOSE: The same plate cannot be parked twice (IllegalStateException).
     @Test
     void duplicatePlateRejected() {
         ParkingLot lot = new ParkingLot(2);

@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
 class BoundedBufferTest {
+    // PURPOSE: Basic behaviour without threads: items come out in the order they went in, and size() is correct.
     @Test
     @Timeout(10)
     void fifoOrderSingleThread() throws Exception {
@@ -19,6 +20,7 @@ class BoundedBufferTest {
         assertThat(b.size()).isEqualTo(0);
     }
 
+    // PURPOSE: take() on an empty buffer must block (not return null) until another thread puts an item.
     @Test
     @Timeout(10)
     void takeBlocksUntilItemArrives() throws Exception {
@@ -35,6 +37,7 @@ class BoundedBufferTest {
         assertThat(got).containsExactly("hello");
     }
 
+    // PURPOSE: put() on a full buffer must block until a consumer makes room.
     @Test
     @Timeout(10)
     void putBlocksWhenFull() throws Exception {
@@ -51,6 +54,7 @@ class BoundedBufferTest {
         assertThat(b.take()).isEqualTo(2);
     }
 
+    // PURPOSE: Stress test: 4 producers + 4 consumers; every item is consumed exactly once (checked with a sum), with no deadlock or lost wakeup.
     @Test
     @Timeout(20)
     void manyProducersManyConsumers() throws Exception {

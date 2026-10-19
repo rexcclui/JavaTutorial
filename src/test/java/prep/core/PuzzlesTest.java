@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
  * (wrong) guess and see the failure message, or add your own puzzles.
  */
 class PuzzlesTest {
+    // PURPOSE: Boxed Integers: == works for -128..127 (cached) but not outside it. Always use equals() for wrapper types.
     @Test
     void integerCache() {
         Integer a = 127, b = 127, c = 128, d = 128;
@@ -20,6 +21,7 @@ class PuzzlesTest {
         assertThat(c.equals(d)).isTrue();
     }
 
+    // PURPOSE: String literals share one pooled instance; new String(...) does not. intern() returns the pooled copy.
     @Test
     void stringPool() {
         String a = "hi";
@@ -30,6 +32,7 @@ class PuzzlesTest {
         assertThat(a == c.intern()).isTrue();
     }
 
+    // PURPOSE: Java is pass-by-value: a method can mutate the object a reference points to, but cannot re-point the caller's variable.
     @Test
     void passByValue() {
         StringBuilder sb = new StringBuilder("a");
@@ -42,6 +45,7 @@ class PuzzlesTest {
     private static void mutate(StringBuilder sb) { sb.append("b"); }
     private static void reassign(StringBuilder sb) { sb = new StringBuilder("zzz"); }
 
+    // PURPOSE: A return inside finally replaces the return in try. Never do this in real code, but interviewers ask.
     @Test
     void finallyOverridesReturn() {
         assertThat(tricky()).isEqualTo(2);
@@ -52,6 +56,7 @@ class PuzzlesTest {
         try { return 1; } finally { return 2; }
     }
 
+    // PURPOSE: char + int is an int; compound assignment (c += 1) adds an implicit cast so it stays a char.
     @Test
     void charArithmetic() {
         char c = 'a';
@@ -60,6 +65,7 @@ class PuzzlesTest {
         assertThat('a' + 1).isEqualTo(98);  // int, not char
     }
 
+    // PURPOSE: List<Integer>.remove(int index) vs remove(Object): overload resolution picks different methods.
     @Test
     void removeWhileIterating() {
         List<Integer> list = new ArrayList<>(List.of(1, 2, 3));
@@ -68,12 +74,14 @@ class PuzzlesTest {
         assertThat(list).containsExactly(3);
     }
 
+    // PURPOSE: int arithmetic wraps around silently; Math.abs(Integer.MIN_VALUE) is still negative.
     @Test
     void integerOverflow() {
         assertThat(Integer.MAX_VALUE + 1).isEqualTo(Integer.MIN_VALUE);
         assertThat(Math.abs(Integer.MIN_VALUE)).isEqualTo(Integer.MIN_VALUE);
     }
 
+    // PURPOSE: Binary floating point cannot represent 0.1 exactly, so compare with a tolerance (or use BigDecimal for money).
     @Test
     void floatingPoint() {
         assertThat(0.1 + 0.2 == 0.3).isFalse();

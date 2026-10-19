@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 
 /** Runnable demos of JVM behaviour that interviewers love. Read each test, predict, then verify. */
 class JvmDemosTest {
+    // PURPOSE: StackOverflowError extends Error, not Exception, so catch (Exception e) will not stop runaway recursion.
     @Test
     void stackOverflowIsAnError_notAnException() {
         assertThatThrownBy(JvmDemosTest::recurseForever).isInstanceOf(StackOverflowError.class);
@@ -19,6 +20,7 @@ class JvmDemosTest {
 
     private static int recurseForever() { return 1 + recurseForever(); }
 
+    // PURPOSE: Class/object initialisation order: parent static, child static, then parent init+ctor, child init+ctor for each new object.
     @Test
     void staticInitRunsOnceAndInOrder() {
         List<String> log = Init.LOG;
@@ -48,6 +50,7 @@ class JvmDemosTest {
         }
     }
 
+    // PURPOSE: A weak reference does not keep an object alive, but GC timing is not guaranteed, so tests must not depend on it.
     @Test
     void weakReferenceCanBeCollected() {
         Object strong = new Object();
@@ -57,12 +60,14 @@ class JvmDemosTest {
         // so never write a test that depends on it. That non-determinism is the interview point.
     }
 
+    // PURPOSE: Long.equals(Integer) is false even for the same number: equals() also compares the type.
     @Test
     void equalsOnStringsAndBoxedTypes() {
         assertThat(Long.valueOf(5).equals(5)).isFalse();      // Long vs Integer: different types -> false
         assertThat(Long.valueOf(5).equals(5L)).isTrue();
     }
 
+    // PURPOSE: String methods return new strings; the original never changes, which is why Strings are safe to share.
     @Test
     void immutableStringsAreSafeToShare() {
         String a = "abc";

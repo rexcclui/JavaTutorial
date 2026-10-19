@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.Test;
 
 class SearchingTest {
+    // PURPOSE: Finds every existing element's index, returns -1 for missing values and for an empty array.
     @Test
     void binarySearch() {
         int[] a = {1, 3, 5, 7, 9, 11};
@@ -13,6 +14,7 @@ class SearchingTest {
         assertThat(Searching.binarySearch(new int[] {}, 4)).isEqualTo(-1);
     }
 
+    // PURPOSE: Index of the first element >= target, including before-first, between values, duplicates and past-the-end.
     @Test
     void lowerBound() {
         int[] a = {1, 2, 2, 2, 5};
@@ -22,6 +24,7 @@ class SearchingTest {
         assertThat(Searching.lowerBound(a, 9)).isEqualTo(5);
     }
 
+    // PURPOSE: Binary search on a rotated sorted array: find every element and reject missing ones.
     @Test
     void searchRotated() {
         int[] a = {4, 5, 6, 7, 0, 1, 2};
@@ -30,6 +33,7 @@ class SearchingTest {
         assertThat(Searching.searchRotated(new int[] {1}, 1)).isEqualTo(0);
     }
 
+    // PURPOSE: Reminder that mid = (lo + hi) / 2 can overflow; use lo + (hi - lo) / 2.
     @Test
     void hugeIndicesDoNotOverflow() {
         // mid = (lo + hi) / 2 overflows for arrays near Integer.MAX_VALUE; the formula matters even if this test can't allocate it.

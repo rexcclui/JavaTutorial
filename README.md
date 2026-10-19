@@ -61,6 +61,7 @@ Tick them off as you go.
 | [ ] | Design patterns | [docs/patterns.md](docs/patterns.md) | `AppConfig`, `Pizza`, `EventBus` |
 | [ ] | Low-level design | [docs/design.md](docs/design.md) | `RateLimiter`, `ParkingLot` |
 | [ ] | JVM and memory | [docs/jvm.md](docs/jvm.md) | `Team`, demos |
+| [ ] | Multiple-choice practice | [docs/mcq.md](docs/mcq.md) | 17 questions, each with experiments that prove every option |
 
 Suggested order: core -> collections -> algorithms -> data structures -> modern -> concurrency -> patterns -> design -> jvm.
 

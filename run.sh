@@ -165,7 +165,12 @@ awk '
 ' <(sed -e 's/ » / ~~ /' -e 's/\(:[0-9][0-9]*\) ? /\1 ~~ /' "$out")
 
 echo
-echo "Tip: 'not implemented yet' means you haven't filled in that exercise. Open the file under exercises/java/prep/"
-[ -n "$category" ] && echo "     (category '$category' -> exercises/java/prep/$category/) and replace the TODOs."
-echo "     Rerun one exercise: ./run.sh <category> <ClassName>     Full Maven output: add --verbose"
+if [ "$category" = "mcq" ]; then
+  echo "Tip: a failing checkMyAnswer means your answer is wrong. Read the experiment tests in that file for the evidence, then change MY_ANSWER."
+  echo "     Rerun one question: ./run.sh mcq Q03     Full Maven output: add --verbose"
+else
+  echo "Tip: 'not implemented yet' means you haven't filled in that exercise. Open the file under exercises/java/prep/"
+  [ -n "$category" ] && echo "     (category '$category' -> exercises/java/prep/$category/) and replace the TODOs."
+  echo "     Rerun one exercise: ./run.sh <category> <ClassName>     Full Maven output: add --verbose"
+fi
 exit "$status"

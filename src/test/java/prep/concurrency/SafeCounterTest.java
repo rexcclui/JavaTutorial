@@ -13,7 +13,7 @@ class SafeCounterTest {
         int threads = 8, perThread = 50_000;
         List<Thread> ts = new ArrayList<>();
         for (int i = 0; i < threads; i++) {
-            Thread t = new Thread(() -> {
+            Thread t = prep.TestThreads.newThread(() -> {
                 for (int j = 0; j < perThread; j++) counter.increment();
             });
             ts.add(t);

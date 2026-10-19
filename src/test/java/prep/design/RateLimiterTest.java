@@ -47,7 +47,7 @@ class RateLimiterTest {
         AtomicLong granted = new AtomicLong();
         Thread[] ts = new Thread[8];
         for (int i = 0; i < ts.length; i++) {
-            ts[i] = new Thread(() -> {
+            ts[i] = prep.TestThreads.newThread(() -> {
                 for (int j = 0; j < 100; j++) if (rl.tryAcquire()) granted.incrementAndGet();
             });
             ts[i].start();

@@ -24,7 +24,7 @@ class BoundedBufferTest {
     void takeBlocksUntilItemArrives() throws Exception {
         BoundedBuffer<String> b = new BoundedBuffer<>(1);
         ConcurrentLinkedQueue<String> got = new ConcurrentLinkedQueue<>();
-        Thread consumer = new Thread(() -> {
+        Thread consumer = prep.TestThreads.newThread(() -> {
             try { got.add(b.take()); } catch (InterruptedException ignored) { }
         });
         consumer.start();
@@ -40,7 +40,7 @@ class BoundedBufferTest {
     void putBlocksWhenFull() throws Exception {
         BoundedBuffer<Integer> b = new BoundedBuffer<>(1);
         b.put(1);
-        Thread producer = new Thread(() -> {
+        Thread producer = prep.TestThreads.newThread(() -> {
             try { b.put(2); } catch (InterruptedException ignored) { }
         });
         producer.start();
@@ -59,13 +59,13 @@ class BoundedBufferTest {
         java.util.concurrent.atomic.AtomicLong sum = new java.util.concurrent.atomic.AtomicLong();
         Thread[] ps = new Thread[producers], cs = new Thread[consumers];
         for (int i = 0; i < producers; i++) {
-            ps[i] = new Thread(() -> {
+            ps[i] = prep.TestThreads.newThread(() -> {
                 try { for (int j = 1; j <= perProducer; j++) b.put(j); } catch (InterruptedException ignored) { }
             });
             ps[i].start();
         }
         for (int i = 0; i < consumers; i++) {
-            cs[i] = new Thread(() -> {
+            cs[i] = prep.TestThreads.newThread(() -> {
                 try { for (int j = 0; j < perProducer; j++) sum.addAndGet(b.take()); } catch (InterruptedException ignored) { }
             });
             cs[i].start();

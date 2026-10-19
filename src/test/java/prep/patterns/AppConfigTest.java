@@ -26,7 +26,7 @@ class AppConfigTest {
         int n = 32;
         CountDownLatch start = new CountDownLatch(1), done = new CountDownLatch(n);
         for (int i = 0; i < n; i++) {
-            new Thread(() -> {
+            prep.TestThreads.newThread(() -> {
                 try { start.await(); } catch (InterruptedException ignored) { }
                 seen.add(AppConfig.getInstance());
                 done.countDown();

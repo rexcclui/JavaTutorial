@@ -9,9 +9,12 @@ Requirements: JDK 21 and (optionally) Maven. The Maven Wrapper (`./mvnw`) is inc
 ```bash
 ./run.sh --list              # list categories
 ./run.sh                     # run everything (unsolved exercises fail, that's the point)
-./run.sh collections         # run one category
+./run.sh collections         # run one category (lists every test with PASS/FAIL/SKIP, time and purpose)
 ./run.sh core PointTest      # run one test class
 ./run.sh --solutions         # run against reference solutions (sanity check)
+./run.sh --learn core        # solutions + every test with its purpose (read-only study)
+./run.sh --details           # per-test list even for a full run
+./run.sh --verbose core      # also show the raw Maven output
 mvn test -Dtest=PointTest#toStringFormat    # one test method
 ```
 

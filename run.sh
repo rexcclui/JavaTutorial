@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 # Usage:
 #   ./run.sh                      run every test (practice mode: your code in exercises/)
-#   ./run.sh collections          run one category
+#   ./run.sh collections          run one category (shows every test that ran)
 #   ./run.sh core PointTest       run one test class in a category
 #   ./run.sh --solutions [cat]    run against the reference solutions (sanity check / peek)
-#   ./run.sh --learn [cat]        run reference solutions and list every behaviour that passes (read-only learning mode)
-#   ./run.sh --verbose ...        show the raw Maven output
+#   ./run.sh --learn [cat]        solutions + full per-test details with each test's purpose
+#   ./run.sh --details ...        always show every test (default for a single category)
+#   ./run.sh --verbose ...        also show the raw Maven output
 #   ./run.sh --list               list categories
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -20,11 +21,14 @@ categories() { ls src/test/java/prep | grep -v '\.java$' | sort; }
 flags=(-q -B)
 verbose=0
 learn=0
+details=0
+solutions=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --list) categories; exit 0 ;;
-    --solutions) flags+=(-Dsolutions); shift ;;
-    --learn) flags+=(-Dsolutions); learn=1; shift ;;
+    --solutions) flags+=(-Dsolutions); solutions=1; shift ;;
+    --learn) flags+=(-Dsolutions); solutions=1; learn=1; details=1; shift ;;
+    --details) details=1; shift ;;
     --verbose) verbose=1; shift ;;
     *) break ;;
   esac
@@ -35,12 +39,19 @@ category=""
 if [ $# -ge 1 ]; then
   category="$1"
   categories | grep -qx "$category" || { echo "Unknown category '$category'. Categories:"; categories; exit 1; }
+  details=1
   if [ $# -ge 2 ]; then target=(-Dtest="prep.$category.$2*"); else target=(-Dtest="prep.$category.*Test"); fi
 fi
 
-echo "Running tests${category:+ for '$category'}$([[ " ${flags[*]} " == *Dsolutions* ]] && echo ' (against reference solutions)')..."
+echo "Running tests${category:+ for '$category'}$([ "$solutions" -eq 1 ] && echo ' (against reference solutions)')..."
 out=$(mktemp)
-trap 'rm -f "$out"' EXIT
+purposes=$(mktemp)
+results=$(mktemp)
+trap 'rm -f "$out" "$purposes" "$results"' EXIT
+
+report_dir=target/surefire-reports
+rm -f "$report_dir"/TEST-*.xml   # avoid listing results left over from an earlier run
+
 set +e
 "$MVN" "${flags[@]}" ${target[@]+"${target[@]}"} -Dsurefire.failIfNoSpecifiedTests=false test >"$out" 2>&1
 status=$?
@@ -48,22 +59,6 @@ set -e
 
 # grep exits 1 when it prints nothing (e.g. all tests passed quietly); that must not stop the script under set -e
 if [ "$verbose" -eq 1 ]; then grep -v '^Picked up JAVA_TOOL_OPTIONS' "$out" || true; fi
-
-if [ "$status" -eq 0 ]; then
-  echo "ALL GREEN - every test passed."
-  if [ "$learn" -eq 1 ]; then
-    echo
-    echo "What the reference solutions do (each line = one verified behaviour):"
-    grep -h -o '<testcase name="[^"]*" classname="[^"]*"' target/surefire-reports/TEST-*.xml 2>/dev/null \
-      | grep -vi 'name="level[0-9]' | sed -E 's/<testcase name="([^"]*)" classname="prep\.([^.]*)\.([^"]*)"/\2 \3 \1/' | sort -u \
-      | awk '{ if ($1 != c) { c = $1; printf "\n[%s]  read: solutions/java/prep/%s/\n", c, c }
-               if ($2 != k) { k = $2; printf "  %s\n", k }
-               n = $3; sub(/\(\).*/, "", n); printf "      ok  %s\n", n }'
-    echo
-    echo "Reading order and what to notice in each file: docs/solutions-tour.md"
-  fi
-  exit 0
-fi
 
 if grep -q "COMPILATION ERROR" "$out"; then
   echo
@@ -74,8 +69,77 @@ if grep -q "COMPILATION ERROR" "$out"; then
   exit "$status"
 fi
 
-# Summarise failures from the "[ERROR] Failures:/Errors:" section of Maven's output.
+# ---- per-test report from Maven's XML files -------------------------------------------------
+if ls "$report_dir"/TEST-*.xml >/dev/null 2>&1; then
+  # 1) purpose comments:  Class.method <TAB> text   (from the "// PURPOSE:" line above each test)
+  for f in src/test/java/prep/*/*Test.java; do
+    awk -v cls="$(basename "$f" .java)" '
+      /\/\/ PURPOSE:/ { p = $0; sub(/.*PURPOSE: */, "", p); next }
+      /void [A-Za-z0-9_]+\(/ { if (p != "") { m = $0; sub(/.*void /, "", m); sub(/\(.*/, "", m); print cls "." m "\t" p; p = "" } }
+    ' "$f"
+  done >"$purposes"
+
+  # 2) test results:  classname <TAB> name <TAB> status <TAB> seconds
+  cat "$report_dir"/TEST-*.xml | awk '
+    function attr(s, k,   i, r) {
+      i = index(s, " " k "=\"")
+      if (i == 0) return ""
+      r = substr(s, i + length(k) + 3)
+      return substr(r, 1, index(r, "\"") - 1)
+    }
+    function emit() { print cls "\t" name "\t" status "\t" secs }
+    /<testcase / {
+      name = attr($0, "name"); cls = attr($0, "classname"); secs = attr($0, "time"); status = "PASS"; open = 1
+      if ($0 ~ /\/>[[:space:]]*$/) { emit(); open = 0 }
+      next
+    }
+    open && /<failure/ { status = "FAIL" }
+    open && /<error/   { status = "ERROR" }
+    open && /<skipped/ { status = "SKIP" }
+    open && /<\/testcase>/ { emit(); open = 0 }
+  ' | sort >"$results"
+
+  # 3) print it
+  awk -F'\t' -v detail="$details" '
+    NR == FNR { why[$1] = $2; next }
+    {
+      n = split($1, cp, "."); cat = cp[2]; short = cp[n]
+      name = $2; base = name; sub(/[(\[].*/, "", base)
+      disp = name; sub(/\([^)]*\)/, "", disp)
+      st = $3; total++; count[st]++
+      if (!(short in seen)) { seen[short] = 1; order[++nclasses] = short; catof[short] = cat }
+      cc[short, st]++; ct[short]++
+      if (detail) {
+        if (short != last) { printf "\n  [%s] %s\n", cat, short; last = short }
+        printf "    %-5s %s  (%ss)\n", st, disp, $4
+        w = why[short "." base]
+        if (w != "") printf "          purpose: %s\n", w
+      }
+    }
+    END {
+      if (!detail) {
+        print ""
+        for (i = 1; i <= nclasses; i++) {
+          c = order[i]
+          printf "  %-40s %2d tests: %d pass, %d fail, %d skipped\n", "[" catof[c] "] " c, ct[c], ct[c] - cc[c, "FAIL"] - cc[c, "ERROR"] - cc[c, "SKIP"], cc[c, "FAIL"] + cc[c, "ERROR"], cc[c, "SKIP"]
+        }
+      }
+      bad = count["FAIL"] + count["ERROR"]
+      printf "\n  Total: %d tests - %d passed, %d failed, %d skipped\n", total, total - bad - count["SKIP"], bad, count["SKIP"]
+    }
+  ' "$purposes" "$results"
+fi
+
+if [ "$status" -eq 0 ]; then
+  echo
+  echo "ALL GREEN - every test passed."
+  [ "$learn" -eq 1 ] && echo "Reading order and what to notice in each file: docs/solutions-tour.md"
+  exit 0
+fi
+
+# ---- why the failing tests failed ----------------------------------------------------------
 echo
+echo "Why tests failed:"
 awk '
   /^\[ERROR\] (Failures|Errors): *$/ { sect = 1; next }
   /^\[ERROR\] Tests run:/ { sect = 0 }
@@ -100,9 +164,6 @@ awk '
   END { if (name != "") flush() }
 ' <(sed -e 's/ » / ~~ /' -e 's/\(:[0-9][0-9]*\) ? /\1 ~~ /' "$out")
 
-total=$(grep -E '^\[ERROR\] Tests run: [0-9]+, Failures: [0-9]+, Errors: [0-9]+, Skipped: [0-9]+$' "$out" | tail -1 || true)
-echo
-echo "${total:-See details with --verbose}" | sed 's/^\[ERROR\] //'
 echo
 echo "Tip: 'not implemented yet' means you haven't filled in that exercise. Open the file under exercises/java/prep/"
 [ -n "$category" ] && echo "     (category '$category' -> exercises/java/prep/$category/) and replace the TODOs."

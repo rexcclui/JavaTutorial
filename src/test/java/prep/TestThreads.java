@@ -9,7 +9,7 @@ public final class TestThreads {
     private TestThreads() {}
 
     public static Thread newThread(Runnable body) {
-        Thread t = prep.TestThreads.newThread(body);
+        Thread t = new Thread(body);
         t.setUncaughtExceptionHandler((thread, error) -> { });
         return t;
     }

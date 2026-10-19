@@ -4,6 +4,7 @@
 #   ./run.sh collections          run one category
 #   ./run.sh core PointTest       run one test class in a category
 #   ./run.sh --solutions [cat]    run against the reference solutions (sanity check / peek)
+#   ./run.sh --verbose ...        show the raw Maven output
 #   ./run.sh --list               list categories
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -13,22 +14,82 @@ if command -v mvn >/dev/null; then MVN=mvn
 elif [ -x ./mvnw ]; then MVN=./mvnw
 else echo "Maven not found. Install JDK 21 + Maven (see README)."; exit 1; fi
 
-categories() { ls src/test/java/prep | sort; }
+categories() { ls src/test/java/prep | grep -v '\.java$' | sort; }
 
 flags=(-q -B)
-if [ "${1:-}" = "--list" ]; then categories; exit 0; fi
-if [ "${1:-}" = "--solutions" ]; then flags+=(-Dsolutions); shift; fi
+verbose=0
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --list) categories; exit 0 ;;
+    --solutions) flags+=(-Dsolutions); shift ;;
+    --verbose) verbose=1; shift ;;
+    *) break ;;
+  esac
+done
 
 target=()
+category=""
 if [ $# -ge 1 ]; then
-  categories | grep -qx "$1" || { echo "Unknown category '$1'. Categories:"; categories; exit 1; }
-  if [ $# -ge 2 ]; then target=(-Dtest="prep.$1.$2*"); else target=(-Dtest="prep.$1.*Test"); fi
+  category="$1"
+  categories | grep -qx "$category" || { echo "Unknown category '$category'. Categories:"; categories; exit 1; }
+  if [ $# -ge 2 ]; then target=(-Dtest="prep.$category.$2*"); else target=(-Dtest="prep.$category.*Test"); fi
 fi
 
-echo ">> $MVN test ${flags[*]} ${target[*]-}"
+echo "Running tests${category:+ for '$category'}$([[ " ${flags[*]} " == *Dsolutions* ]] && echo ' (against reference solutions)')..."
+out=$(mktemp)
+trap 'rm -f "$out"' EXIT
 set +e
-"$MVN" "${flags[@]}" ${target[@]+"${target[@]}"} -Dsurefire.failIfNoSpecifiedTests=false test 2>&1 | grep -v '^Picked up JAVA_TOOL_OPTIONS'
-status=${PIPESTATUS[0]}
+"$MVN" "${flags[@]}" ${target[@]+"${target[@]}"} -Dsurefire.failIfNoSpecifiedTests=false test >"$out" 2>&1
+status=$?
 set -e
-if [ "$status" -eq 0 ]; then echo "ALL GREEN"; else echo "Some tests failed (expected for unsolved exercises). Exit code $status"; fi
+
+if [ "$verbose" -eq 1 ]; then grep -v '^Picked up JAVA_TOOL_OPTIONS' "$out"; fi
+
+if [ "$status" -eq 0 ]; then
+  echo "ALL GREEN - every test passed."
+  exit 0
+fi
+
+if grep -q "COMPILATION ERROR" "$out"; then
+  echo
+  echo "Your code does not compile. Fix these first:"
+  grep -E '^\[ERROR\] /.*\.java' "$out" | sed 's|^\[ERROR\] ||; s|.*/JavaTutorial/||' | sort -u | head -20
+  echo
+  echo "(run with --verbose for the full Maven output)"
+  exit "$status"
+fi
+
+# Summarise failures from the "[ERROR] Failures:/Errors:" section of Maven's output.
+echo
+awk '
+  /^\[ERROR\] (Failures|Errors): *$/ { sect = 1; next }
+  /^\[ERROR\] Tests run:/ { sect = 0 }
+  /^\[ERROR\] Failed to execute goal/ { sect = 0 }
+  sect && /^\[ERROR\]   / {
+    if (name != "") flush()
+    line = $0; sub(/^\[ERROR\]   /, "", line)
+    split(line, parts, " ~~ ")
+    name = parts[1]; msg = (parts[2] != "") ? parts[2] : ""
+    next
+  }
+  sect && name != "" && !/^\[ERROR\]/ && $0 !~ /^[[:space:]]*$/ { msg = msg (msg == "" ? "" : " ") $0 }
+  function flush(   m) {
+    sub(/:[0-9]+ *$/, "", name)
+    m = msg
+    if (m ~ /UnsupportedOperation(Exception)? TODO/) m = "not implemented yet (still the TODO stub)"
+    gsub(/^ +| +$/, "", m)
+    if (length(m) > 110) m = substr(m, 1, 107) "..."
+    print "  FAIL " name "\n       -> " m
+    name = ""; msg = ""
+  }
+  END { if (name != "") flush() }
+' <(sed 's/ » / ~~ /' "$out")
+
+total=$(grep -E '^\[ERROR\] Tests run: [0-9]+, Failures: [0-9]+, Errors: [0-9]+, Skipped: [0-9]+$' "$out" | tail -1 || true)
+echo
+echo "${total:-See details with --verbose}" | sed 's/^\[ERROR\] //'
+echo
+echo "Tip: 'not implemented yet' means you haven't filled in that exercise. Open the file under exercises/java/prep/"
+[ -n "$category" ] && echo "     (category '$category' -> exercises/java/prep/$category/) and replace the TODOs."
+echo "     Rerun one exercise: ./run.sh <category> <ClassName>     Full Maven output: add --verbose"
 exit "$status"

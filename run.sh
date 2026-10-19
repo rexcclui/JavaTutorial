@@ -83,7 +83,7 @@ awk '
     name = ""; msg = ""
   }
   END { if (name != "") flush() }
-' <(sed 's/ » / ~~ /' "$out")
+' <(sed -e 's/ » / ~~ /' -e 's/\(:[0-9][0-9]*\) ? /\1 ~~ /' "$out")
 
 total=$(grep -E '^\[ERROR\] Tests run: [0-9]+, Failures: [0-9]+, Errors: [0-9]+, Skipped: [0-9]+$' "$out" | tail -1 || true)
 echo

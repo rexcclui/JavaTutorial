@@ -27,6 +27,7 @@ Paths are under `solutions/java/prep/`.
 
 ## 5. modern (Java 8-21)
 - `modern/StreamPractice.java`: filter/map/groupingBy/joining/flatMap/distinct. Notice `reduce` used so the first of equal-length strings wins.
+- Test only: `GroupingByWalkthroughTest`: every form of `Collectors.groupingBy` (classifier, downstream collectors, map factory, nesting) vs `partitioningBy` and `toMap`. Run `./run.sh --verbose modern GroupingBy`.
 - `modern/ShapeMath.java`: sealed interface + records + `switch` pattern matching with a `when` guard and no `default`.
 
 ## 6. concurrency

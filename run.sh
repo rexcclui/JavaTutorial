@@ -46,7 +46,8 @@ set +e
 status=$?
 set -e
 
-if [ "$verbose" -eq 1 ]; then grep -v '^Picked up JAVA_TOOL_OPTIONS' "$out"; fi
+# grep exits 1 when it prints nothing (e.g. all tests passed quietly); that must not stop the script under set -e
+if [ "$verbose" -eq 1 ]; then grep -v '^Picked up JAVA_TOOL_OPTIONS' "$out" || true; fi
 
 if [ "$status" -eq 0 ]; then
   echo "ALL GREEN - every test passed."

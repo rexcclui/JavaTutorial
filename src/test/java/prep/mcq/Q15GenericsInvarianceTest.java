@@ -18,61 +18,71 @@ import org.junit.jupiter.api.Test;
  *   B. Compile error: List<String> is not a List<Object> (generics are invariant).
  *   C. It compiles but throws ClassCastException at runtime.
  *   D. It compiles with only an unchecked warning.
+ *
+ * ANSWER: B
+ *
+ * WHY:
+ *   A, D. Wrong - it is a hard compile ERROR ("incompatible types"), not a warning.
+ *   B. Correct - if it were allowed you could add an Integer to what is really a list of Strings.
+ *   C. Wrong - a statement that does not compile cannot fail at runtime. (ClassCastException only appears if you sneak past generics with raw types.)
+ *
+ * See it run:  ./run.sh mcq Q15
  */
 @SuppressWarnings({"rawtypes", "unchecked"})
 class Q15GenericsInvarianceTest {
-    /** Your answer: 'A', 'B', 'C' or 'D'. Leave '?' to skip. */
-    private static final char MY_ANSWER = '?';
-    private static final char CORRECT = 'B';
 
     private static String wrap(String statement) {
         return "import java.util.*; public class Snippet { void m() { " + statement + " } }";
     }
 
-    // PURPOSE: Check your answer. Skipped until you set MY_ANSWER; fails if it is wrong.
+    // PURPOSE: Demo - the real compiler's verdict on the statement from the question, and on the legal alternatives.
     @Test
-    void checkMyAnswer() {
-        McqSupport.check(MY_ANSWER, CORRECT);
+    void demo_compilerVerdicts() {
+        String[] statements = {
+            "List<Object> a = new ArrayList<String>();",
+            "List<? extends Object> a = new ArrayList<String>();",
+            "List<Object> a = new ArrayList<Object>();"};
+        for (String statement : statements) {
+            var errors = McqSupport.compileErrors("Snippet", wrap(statement));
+            McqSupport.show("%-55s -> %s", statement, errors.isEmpty() ? "compiles" : "ERROR: " + errors.get(0).lines().findFirst().orElse(""));
+        }
+        assertThat(McqSupport.compileErrors("Snippet", wrap(statements[0]))).isNotEmpty();
+        assertThat(McqSupport.compileErrors("Snippet", wrap(statements[1]))).isEmpty();
+        assertThat(McqSupport.compileErrors("Snippet", wrap(statements[2]))).isEmpty();
     }
 
-    // PURPOSE: Concept - the real compiler's verdict on the statement from the question, and on the legal alternatives.
+    // PURPOSE: Options A and D are WRONG - it is an error, not a warning: exactly one "incompatible types" compile error.
     @Test
-    void concept_compilerVerdicts() {
-        assertThat(McqSupport.compileErrors("Snippet", wrap("List<Object> a = new ArrayList<String>();"))).isNotEmpty();
-        assertThat(McqSupport.compileErrors("Snippet", wrap("List<? extends Object> a = new ArrayList<String>();"))).isEmpty();
-        assertThat(McqSupport.compileErrors("Snippet", wrap("List<Object> a = new ArrayList<Object>();"))).isEmpty();
-    }
-
-    // PURPOSE: Experiment for options A and D - if it compiled (with or without a warning) there would be no error message. There is an error.
-    @Test
-    void experimentAandD_isAnErrorNotAWarning() {
+    void optionAandD_wrong_isAnErrorNotAWarning() {
         var errors = McqSupport.compileErrors("Snippet", wrap("List<Object> a = new ArrayList<String>();"));
+        McqSupport.show("compile errors: %s", errors);
         assertThat(errors).hasSize(1);
         assertThat(errors.get(0)).contains("incompatible types");
-        // Verdict: A and D are false.
     }
 
-    // PURPOSE: Experiment for option B - WHY it is forbidden: if it were allowed, you could put an Integer into what is really a list of Strings.
+    // PURPOSE: Option B is CORRECT - WHY invariance exists: force it with a raw cast and an Integer lands in a "list of Strings".
     @Test
-    void experimentB_whyInvarianceExists() {
+    void optionB_correct_whyInvarianceExists() {
         List<String> strings = new ArrayList<>();
-        List<Object> objects = (List) strings;           // force it with a raw cast - this is what the compiler prevents
-        objects.add(42);                                 // compiles, "works"... heap pollution
+        List<Object> objects = (List) strings;           // the cast the compiler prevents in normal code
+        objects.add(42);
+        McqSupport.show("added 42 through the List<Object> alias; the 'List<String>' now contains: %s", strings);
+        McqSupport.attempt("String s = strings.get(0)", () -> { String s = strings.get(0); });
         assertThatThrownBy(() -> { String s = strings.get(0); }).isInstanceOf(ClassCastException.class);
-        // Verdict: B is true - the compile error protects you from this runtime failure.
     }
 
-    // PURPOSE: Experiment for option C - the ClassCastException in experimentB only appears when you bypass generics with raw types; the original statement never gets that far.
+    // PURPOSE: Option C is WRONG - the ClassCastException needs raw types; the original statement never gets as far as running.
     @Test
-    void experimentC_castExceptionNeedsRawTypes() {
+    void optionC_wrong_castExceptionNeedsRawTypes() {
         assertThat(McqSupport.compileErrors("Snippet", wrap("List<Object> a = new ArrayList<String>();"))).isNotEmpty();
-        // Verdict: C is false: a statement that does not compile cannot fail at runtime.
+        McqSupport.show("the statement does not compile, so it cannot fail at runtime");
     }
 
-    // PURPOSE: Contrast - ARRAYS are covariant (String[] is an Object[]), which is allowed but fails at runtime with ArrayStoreException.
+    // PURPOSE: Contrast - ARRAYS are covariant (String[] is an Object[]); allowed, but it fails at runtime with ArrayStoreException.
     @Test
     void contrast_arraysAreCovariant() {
         Object[] objects = new String[1];
+        McqSupport.attempt("objects[0] = 1  (objects is really String[])", () -> objects[0] = 1);
         assertThatThrownBy(() -> objects[0] = 1).isInstanceOf(ArrayStoreException.class);
     }
 }

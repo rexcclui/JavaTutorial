@@ -18,16 +18,18 @@ import javax.tools.ToolProvider;
 public final class McqSupport {
     private McqSupport() {}
 
-    /**
-     * The "check my answer" step of every question.
-     * Skipped until you replace '?' with 'A', 'B', 'C' or 'D'; fails if the answer is wrong.
-     */
-    public static void check(char mine, char correct) {
-        assumeTrue(mine != '?', "Set MY_ANSWER to 'A', 'B', 'C' or 'D' first");
-        if (Character.toUpperCase(mine) != correct) {
-            // deliberately does not reveal the right answer
-            throw new AssertionError("Your answer '" + mine + "' is not correct. "
-                    + "Read the experiment tests: each one gathers evidence about one option.");
+    /** Prints one line of demo output. run.sh shows it under the test, so you can watch what the code does. */
+    public static void show(String format, Object... args) {
+        System.out.println(String.format(format, args));
+    }
+
+    /** Runs an action and prints whether it worked or which exception it threw. Handy to "see" what is allowed. */
+    public static void attempt(String label, Runnable action) {
+        try {
+            action.run();
+            show("  %-36s -> OK", label);
+        } catch (RuntimeException e) {
+            show("  %-36s -> throws %s", label, e.getClass().getSimpleName());
         }
     }
 

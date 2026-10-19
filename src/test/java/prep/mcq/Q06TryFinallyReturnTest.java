@@ -22,38 +22,43 @@ import org.junit.jupiter.api.Test;
  *   B. It does not compile.
  *   C. 1
  *   D. It throws an exception.
+ *
+ * ANSWER: C
+ *
+ * WHY:
+ *   A. Wrong - 2 is returned only if finally itself contains `return 2`. Here finally only assigns x.
+ *   B. Wrong - it compiles.
+ *   C. Correct - `return x` copies the value (1) to be returned BEFORE finally runs; finally changes x afterwards, too late.
+ *   D. Wrong - nothing throws.
+ *
+ * See it run:  ./run.sh mcq Q06
  */
 class Q06TryFinallyReturnTest {
-    /** Your answer: 'A', 'B', 'C' or 'D'. Leave '?' to skip. */
-    private static final char MY_ANSWER = '?';
-    private static final char CORRECT = 'C';
 
     static int f() {
         int x = 1;
         try {
+            McqSupport.show("  try:     return x   -> value 1 is saved for returning");
             return x;
         } finally {
             x = 2;
+            McqSupport.show("  finally: x = 2      -> x changes, but the saved return value stays 1");
         }
     }
 
-    // PURPOSE: Check your answer. Skipped until you set MY_ANSWER; fails if it is wrong.
+    // PURPOSE: Demo - step-by-step trace of f(): the return value is saved before finally runs.
     @Test
-    void checkMyAnswer() {
-        McqSupport.check(MY_ANSWER, CORRECT);
+    void demo_returnValueIsSavedBeforeFinally() {
+        int result = f();
+        McqSupport.show("f() returned %d", result);
+        assertThat(result).isEqualTo(1);
     }
 
-    // PURPOSE: Concept - `return x` copies the value of x first; the finally block runs afterwards but cannot change that saved value.
+    // PURPOSE: Option A is WRONG for f() - 2 comes only from a `return` inside finally (shown with g()).
     @Test
-    void concept_returnValueIsSavedBeforeFinally() {
-        assertThat(f()).isEqualTo(1);
-    }
-
-    // PURPOSE: Experiment for option A - 2 is what you get only if finally itself contains a `return 2`, which overrides the try's return.
-    @Test
-    void experimentA_twoOnlyWhenFinallyReturns() {
+    void optionA_wrong_twoOnlyWhenFinallyReturns() {
+        McqSupport.show("g() { try { return 1; } finally { return 2; } }  ->  %d", g());
         assertThat(g()).isEqualTo(2);
-        // Verdict: A is the answer for g() (return inside finally), not for f() (assignment inside finally).
     }
 
     @SuppressWarnings("finally")
@@ -65,9 +70,9 @@ class Q06TryFinallyReturnTest {
         }
     }
 
-    // PURPOSE: Experiment for option B - the snippet compiles. We compile the exact source.
+    // PURPOSE: Option B is WRONG - the snippet compiles (checked with the real compiler).
     @Test
-    void experimentB_compiles() {
+    void optionB_wrong_compiles() {
         String source = """
                 public class Snippet {
                     static int f() {
@@ -76,14 +81,18 @@ class Q06TryFinallyReturnTest {
                     }
                 }
                 """;
-        assertThat(McqSupport.compileErrors("Snippet", source)).isEmpty();
+        var errors = McqSupport.compileErrors("Snippet", source);
+        McqSupport.show("compiler errors: %s", errors.isEmpty() ? "none - it compiles" : errors);
+        assertThat(errors).isEmpty();
     }
 
-    // PURPOSE: Experiment for option D - nothing in f() throws, so no exception. (A return in finally can even swallow an exception.)
+    // PURPOSE: Option C is CORRECT - and a `return` in finally can even swallow an exception (bonus).
     @Test
-    void experimentD_noException() {
+    void optionC_correct_andBonusSwallowedException() {
+        McqSupport.show("f() = %d", f());
+        McqSupport.show("swallow() = \"%s\"   (the IllegalStateException thrown in try vanished)", swallow());
         assertThat(f()).isEqualTo(1);
-        assertThat(swallow()).isEqualTo("swallowed");   // bonus: return in finally hides the exception
+        assertThat(swallow()).isEqualTo("swallowed");
     }
 
     @SuppressWarnings("finally")
@@ -95,10 +104,18 @@ class Q06TryFinallyReturnTest {
         }
     }
 
-    // PURPOSE: Contrast - with an object (reference) the finally block CAN change the object's contents, because the returned reference is the same object.
+    // PURPOSE: Option D is WRONG - nothing in f() throws.
+    @Test
+    void optionD_wrong_noException() {
+        McqSupport.attempt("f()", Q06TryFinallyReturnTest::f);
+    }
+
+    // PURPOSE: Contrast - with a mutable OBJECT the finally block CAN change what the caller sees, because the returned reference points to the same object.
     @Test
     void contrast_mutableObjectIsChanged() {
-        assertThat(h().toString()).isEqualTo("ab");
+        StringBuilder result = h();
+        McqSupport.show("h() returned \"%s\"   (finally appended \"b\" to the same object)", result);
+        assertThat(result.toString()).isEqualTo("ab");
     }
 
     private static StringBuilder h() {

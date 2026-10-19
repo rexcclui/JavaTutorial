@@ -18,64 +18,72 @@ import org.junit.jupiter.api.Test;
  *   B. l.get(0)
  *   C. l.sort(null)
  *   D. l.add("d")
+ *
+ * ANSWER: D
+ *
+ * WHY:
+ *   A. Does not throw - set() replaces an element; only the SIZE is fixed.
+ *   B. Does not throw - get() is a read.
+ *   C. Does not throw - sorting only rearranges elements (a series of set() calls).
+ *   D. THROWS - add() would change the size, but the list is a fixed-size view of an array.
+ *
+ * See it run:  ./run.sh mcq Q04
  */
 class Q04ArraysAsListTest {
-    /** Your answer: 'A', 'B', 'C' or 'D'. Leave '?' to skip. */
-    private static final char MY_ANSWER = '?';
-    private static final char CORRECT = 'D';
 
-    // PURPOSE: Check your answer. Skipped until you set MY_ANSWER; fails if it is wrong.
+    // PURPOSE: Demo - Arrays.asList is a fixed-size VIEW of the array: element changes go both ways, size changes are forbidden.
     @Test
-    void checkMyAnswer() {
-        McqSupport.check(MY_ANSWER, CORRECT);
-    }
-
-    // PURPOSE: Concept - Arrays.asList is a FIXED-SIZE list that is a view of the array: elements can change, size cannot.
-    @Test
-    void concept_fixedSizeViewOfTheArray() {
+    void demo_fixedSizeViewOfTheArray() {
         String[] array = {"a", "b", "c"};
         List<String> view = Arrays.asList(array);
+        McqSupport.show("array = %s   list = %s", Arrays.toString(array), view);
+
         view.set(0, "X");
-        assertThat(array[0]).isEqualTo("X");           // writes go through to the array...
+        McqSupport.show("view.set(0, \"X\")  -> array = %s   (write goes through to the array)", Arrays.toString(array));
         array[1] = "Y";
-        assertThat(view).containsExactly("X", "Y", "c"); // ...and array changes show in the list
-        assertThatThrownBy(() -> view.add("d")).isInstanceOf(UnsupportedOperationException.class);
-        assertThatThrownBy(() -> view.remove(0)).isInstanceOf(UnsupportedOperationException.class);
+        McqSupport.show("array[1] = \"Y\"    -> list  = %s   (array change shows in the list)", view);
+
+        McqSupport.attempt("view.add(\"d\")", () -> view.add("d"));
+        McqSupport.attempt("view.remove(0)", () -> view.remove(0));
+        assertThat(array[0]).isEqualTo("X");
+        assertThat(view).containsExactly("X", "Y", "c");
     }
 
-    // PURPOSE: Experiment for option A - set() replaces an element; it is allowed (only the size is fixed).
+    // PURPOSE: Option A does NOT throw - set() works.
     @Test
-    void experimentA_setWorks() {
+    void optionA_noThrow_setWorks() {
         List<String> l = Arrays.asList("a", "b", "c");
-        assertThat(l.set(0, "x")).isEqualTo("a");      // returns the old element
+        McqSupport.attempt("l.set(0, \"x\")", () -> l.set(0, "x"));
         assertThat(l).containsExactly("x", "b", "c");
-        // Verdict: A does not throw.
     }
 
-    // PURPOSE: Experiment for option B - get() is a read, always fine.
+    // PURPOSE: Option B does NOT throw - get() works.
     @Test
-    void experimentB_getWorks() {
-        assertThat(Arrays.asList("a", "b", "c").get(0)).isEqualTo("a");
-        // Verdict: B does not throw.
-    }
-
-    // PURPOSE: Experiment for option C - sorting only rearranges elements (a series of sets), so the fixed size is no problem.
-    @Test
-    void experimentC_sortWorks() {
-        List<String> l = Arrays.asList("c", "a", "b");
-        l.sort(null);                                  // null comparator = natural order
-        assertThat(l).containsExactly("a", "b", "c");
-        // Verdict: C does not throw.
-    }
-
-    // PURPOSE: Experiment for option D - add() would change the size, which the array-backed list cannot do.
-    @Test
-    void experimentD_addThrows() {
+    void optionB_noThrow_getWorks() {
         List<String> l = Arrays.asList("a", "b", "c");
+        McqSupport.attempt("l.get(0)", () -> l.get(0));
+        assertThat(l.get(0)).isEqualTo("a");
+    }
+
+    // PURPOSE: Option C does NOT throw - sort() works because it only rearranges elements.
+    @Test
+    void optionC_noThrow_sortWorks() {
+        List<String> l = Arrays.asList("c", "a", "b");
+        l.sort(null);
+        McqSupport.show("after l.sort(null) -> %s", l);
+        assertThat(l).containsExactly("a", "b", "c");
+    }
+
+    // PURPOSE: Option D is the ANSWER - add() throws UnsupportedOperationException. A resizable copy needs new ArrayList<>(...).
+    @Test
+    void optionD_correct_addThrows() {
+        List<String> l = Arrays.asList("a", "b", "c");
+        McqSupport.attempt("l.add(\"d\")", () -> l.add("d"));
         assertThatThrownBy(() -> l.add("d")).isInstanceOf(UnsupportedOperationException.class);
-        // Verdict: D throws. To get a resizable copy use new ArrayList<>(Arrays.asList(...)).
+
         List<String> copy = new ArrayList<>(l);
         copy.add("d");
+        McqSupport.show("fix: new ArrayList<>(l).add(\"d\") -> %s", copy);
         assertThat(copy).hasSize(4);
     }
 }

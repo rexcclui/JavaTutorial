@@ -16,73 +16,78 @@ import org.junit.jupiter.api.Test;
  *   B. thenApply always runs on another thread; thenCompose runs on the calling thread.
  *   C. thenCompose is the method for handling exceptions.
  *   D. thenCompose is like flatMap: it flattens a function that itself returns a CompletionStage, so you do not end up with a nested CompletableFuture<CompletableFuture<T>>.
+ *
+ * ANSWER: D
+ *
+ * WHY:
+ *   A. Wrong - the result types differ: thenApply gives a future OF a future, thenCompose gives a future of the value.
+ *   B. Wrong - thenApply on an already-completed future runs right in the calling thread; only thenApplyAsync hands off to another thread.
+ *   C. Wrong - errors are handled with exceptionally / handle / whenComplete.
+ *   D. Correct - same idea as Stream.flatMap / Optional.flatMap.
+ *
+ * See it run:  ./run.sh mcq Q13
  */
 class Q13ThenApplyVsThenComposeTest {
-    /** Your answer: 'A', 'B', 'C' or 'D'. Leave '?' to skip. */
-    private static final char MY_ANSWER = '?';
-    private static final char CORRECT = 'D';
 
     /** An asynchronous step that returns its own future. */
     private static CompletableFuture<Integer> doubleAsync(int x) {
         return CompletableFuture.supplyAsync(() -> x * 2);
     }
 
-    // PURPOSE: Check your answer. Skipped until you set MY_ANSWER; fails if it is wrong.
+    // PURPOSE: Demo - the same async step used with thenApply gives a NESTED future (two get() calls); with thenCompose it is flat.
     @Test
-    void checkMyAnswer() {
-        McqSupport.check(MY_ANSWER, CORRECT);
-    }
-
-    // PURPOSE: Concept - the same async step used with thenApply gives a NESTED future; with thenCompose it is flattened.
-    @Test
-    void concept_nestedVersusFlat() throws Exception {
+    void demo_nestedVersusFlat() throws Exception {
         CompletableFuture<CompletableFuture<Integer>> nested =
                 CompletableFuture.completedFuture(21).thenApply(Q13ThenApplyVsThenComposeTest::doubleAsync);
         CompletableFuture<Integer> flat =
                 CompletableFuture.completedFuture(21).thenCompose(Q13ThenApplyVsThenComposeTest::doubleAsync);
 
-        assertThat(nested.get().get()).isEqualTo(42);    // two get() calls needed
-        assertThat(flat.get()).isEqualTo(42);            // one
+        McqSupport.show("thenApply   -> CompletableFuture<CompletableFuture<Integer>>: get() gives a %s", nested.get().getClass().getSimpleName());
+        McqSupport.show("                                                       get().get() = %d", nested.get().get());
+        McqSupport.show("thenCompose -> CompletableFuture<Integer>:                   get() = %d", flat.get());
+        assertThat(nested.get().get()).isEqualTo(42);
+        assertThat(flat.get()).isEqualTo(42);
     }
 
-    // PURPOSE: Experiment for option A - not interchangeable: the result TYPES differ (a future of a future vs a future of the value).
+    // PURPOSE: Option A is WRONG - not interchangeable: the result types differ.
     @Test
-    void experimentA_differentResultTypes() throws Exception {
+    void optionA_wrong_differentResultTypes() throws Exception {
         Object viaApply = CompletableFuture.completedFuture(1).thenApply(Q13ThenApplyVsThenComposeTest::doubleAsync).get();
         Object viaCompose = CompletableFuture.completedFuture(1).thenCompose(Q13ThenApplyVsThenComposeTest::doubleAsync).get();
+        McqSupport.show("thenApply   get() type: %s", viaApply.getClass().getSimpleName());
+        McqSupport.show("thenCompose get() type: %s", viaCompose.getClass().getSimpleName());
         assertThat(viaApply).isInstanceOf(CompletableFuture.class);
         assertThat(viaCompose).isInstanceOf(Integer.class);
-        // Verdict: A is false.
     }
 
-    // PURPOSE: Experiment for option B - thenApply on an already-completed future runs the function right here in the calling thread.
+    // PURPOSE: Option B is WRONG - thenApply on a completed future runs in the calling thread; only thenApplyAsync leaves it.
     @Test
-    void experimentB_thenApplyIsNotAlwaysAsync() throws Exception {
-        String ranOn = CompletableFuture.completedFuture(1).thenApply(x -> Thread.currentThread().getName()).get();
-        assertThat(ranOn).isEqualTo(Thread.currentThread().getName());
-        // Only thenApplyAsync(...) hands the work to another thread (the common pool by default).
-        // Verdict: B is false.
+    void optionB_wrong_thenApplyIsNotAlwaysAsync() throws Exception {
+        String viaApply = CompletableFuture.completedFuture(1).thenApply(x -> Thread.currentThread().getName()).get();
+        McqSupport.show("calling thread          : %s", Thread.currentThread().getName());
+        McqSupport.show("thenApply ran on        : %s", viaApply);
+        assertThat(viaApply).isEqualTo(Thread.currentThread().getName());
     }
 
-    // PURPOSE: Experiment for option C - error handling is done with exceptionally/handle/whenComplete; thenCompose just passes a failure along.
+    // PURPOSE: Option C is WRONG - thenCompose just passes a failure along; recovery is done with exceptionally/handle.
     @Test
-    void experimentC_composeDoesNotHandleErrors() {
+    void optionC_wrong_composeDoesNotHandleErrors() {
         CompletableFuture<Integer> failing = CompletableFuture.failedFuture(new IllegalStateException("boom"));
         CompletableFuture<Integer> composed = failing.thenCompose(Q13ThenApplyVsThenComposeTest::doubleAsync);
+        McqSupport.attempt("failing.thenCompose(...).join()", composed::join);
+        McqSupport.show("failing.exceptionally(e -> -1).join() = %d   <- this is how you recover", failing.exceptionally(e -> -1).join());
         assertThatThrownBy(composed::get).isInstanceOf(ExecutionException.class).hasRootCauseInstanceOf(IllegalStateException.class);
-
-        assertThat(failing.exceptionally(e -> -1).join()).isEqualTo(-1);   // this is how you recover
-        // Verdict: C is false.
+        assertThat(failing.exceptionally(e -> -1).join()).isEqualTo(-1);
     }
 
-    // PURPOSE: Experiment for option D - chaining two async steps with thenCompose reads like a straight line; same idea as Optional.flatMap / Stream.flatMap.
+    // PURPOSE: Option D is CORRECT - chaining two async steps with thenCompose reads like a straight line.
     @Test
-    void experimentD_composeChainsAsyncSteps() {
+    void optionD_correct_composeChainsAsyncSteps() {
         int result = CompletableFuture.completedFuture(3)
-                .thenCompose(Q13ThenApplyVsThenComposeTest::doubleAsync)     // 6
-                .thenCompose(Q13ThenApplyVsThenComposeTest::doubleAsync)     // 12
+                .thenCompose(Q13ThenApplyVsThenComposeTest::doubleAsync)
+                .thenCompose(Q13ThenApplyVsThenComposeTest::doubleAsync)
                 .join();
+        McqSupport.show("3 -> doubleAsync -> doubleAsync = %d", result);
         assertThat(result).isEqualTo(12);
-        // Verdict: D is true.
     }
 }

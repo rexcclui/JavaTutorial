@@ -87,10 +87,22 @@ if ls "$report_dir"/TEST-*.xml >/dev/null 2>&1; then
       r = substr(s, i + length(k) + 3)
       return substr(r, 1, index(r, "\"") - 1)
     }
-    function emit() { print cls "\t" name "\t" status "\t" secs }
+    function emit() { gsub(/\t/, "    ", out); print cls "\t" name "\t" status "\t" secs "\t" out }
     /<testcase / {
-      name = attr($0, "name"); cls = attr($0, "classname"); secs = attr($0, "time"); status = "PASS"; open = 1
+      name = attr($0, "name"); cls = attr($0, "classname"); secs = attr($0, "time"); status = "PASS"; open = 1; out = ""; inout = 0
       if ($0 ~ /\/>[[:space:]]*$/) { emit(); open = 0 }
+      next
+    }
+    # text the test printed (System.out) is stored in <system-out><![CDATA[ ... ]]></system-out>
+    open && inout {
+      if ($0 ~ /\]\]><\/system-out>/) { l = $0; sub(/\]\]><\/system-out>.*/, "", l); if (l != "") out = out "\001" l; inout = 0 }
+      else out = out "\001" $0
+      next
+    }
+    open && /<system-out>/ {
+      l = $0; sub(/.*<!\[CDATA\[/, "", l)
+      if (l ~ /\]\]><\/system-out>/) { sub(/\]\]><\/system-out>.*/, "", l) } else { inout = 1 }
+      out = l
       next
     }
     open && /<failure/ { status = "FAIL" }
@@ -114,6 +126,10 @@ if ls "$report_dir"/TEST-*.xml >/dev/null 2>&1; then
         printf "    %-5s %s  (%ss)\n", st, disp, $4
         w = why[short "." base]
         if (w != "") printf "          purpose: %s\n", w
+        if ($5 != "") {
+          n2 = split($5, outl, "\001")
+          for (k = 1; k <= n2; k++) if (outl[k] != "") printf "          | %s\n", outl[k]
+        }
       }
     }
     END {

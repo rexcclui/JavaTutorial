@@ -19,74 +19,83 @@ import org.junit.jupiter.api.Test;
  *   B. A for-each loop that calls list.remove(element) - this always works.
  *   C. list.stream().forEach(list::remove)
  *   D. Collections.unmodifiableList(list).remove(element)
+ *
+ * ANSWER: A
+ *
+ * WHY:
+ *   A. Correct - the iterator updates the list's modification counter itself, so it stays in sync.
+ *   B. Wrong - usually throws ConcurrentModificationException. (It silently "works" only when you remove the
+ *      second-to-last element, because hasNext() returns false first - a nasty accident, not a guarantee.)
+ *   C. Wrong - modifying the source of a stream while it runs also throws ConcurrentModificationException.
+ *   D. Wrong - an unmodifiable wrapper rejects every change with UnsupportedOperationException.
+ *
+ * See it run:  ./run.sh mcq Q10
  */
 class Q10ConcurrentModificationTest {
-    /** Your answer: 'A', 'B', 'C' or 'D'. Leave '?' to skip. */
-    private static final char MY_ANSWER = '?';
-    private static final char CORRECT = 'A';
 
     private static List<String> abc() {
         return new ArrayList<>(List.of("a", "b", "c"));
     }
 
-    // PURPOSE: Check your answer. Skipped until you set MY_ANSWER; fails if it is wrong.
+    // PURPOSE: Demo - remove "a" with an iterator and print the list as it changes.
     @Test
-    void checkMyAnswer() {
-        McqSupport.check(MY_ANSWER, CORRECT);
-    }
-
-    // PURPOSE: Concept - the iterator knows about its own removals; the list's modCount stays in sync, so no exception.
-    @Test
-    void concept_iteratorRemove() {
+    void demo_iteratorRemove() {
         List<String> list = abc();
+        McqSupport.show("before      : %s", list);
         for (Iterator<String> it = list.iterator(); it.hasNext(); ) {
-            if (it.next().equals("a")) it.remove();
+            String s = it.next();
+            if (s.equals("a")) {
+                it.remove();
+                McqSupport.show("it.remove() after seeing \"%s\" -> %s", s, list);
+            }
         }
         assertThat(list).containsExactly("b", "c");
     }
 
-    // PURPOSE: Experiment for option A - both Iterator.remove() and removeIf work and are the idiomatic ways.
+    // PURPOSE: Option A is CORRECT - Iterator.remove() and removeIf both work.
     @Test
-    void experimentA_iteratorAndRemoveIfWork() {
+    void optionA_correct_iteratorAndRemoveIfWork() {
         List<String> byIterator = abc();
         Iterator<String> it = byIterator.iterator();
         while (it.hasNext()) if (!it.next().equals("b")) it.remove();
+        McqSupport.show("Iterator.remove() keeping only \"b\"   : %s", byIterator);
         assertThat(byIterator).containsExactly("b");
 
         List<String> byRemoveIf = abc();
         byRemoveIf.removeIf(s -> s.equals("b"));
+        McqSupport.show("removeIf(s -> s.equals(\"b\"))         : %s", byRemoveIf);
         assertThat(byRemoveIf).containsExactly("a", "c");
-        // Verdict: A is true.
     }
 
-    // PURPOSE: Experiment for option B - removing inside for-each usually throws ConcurrentModificationException... but NOT always (famous trap).
+    // PURPOSE: Option B is WRONG - for-each + list.remove usually throws; the second-to-last element is the silent exception to the rule.
     @Test
-    void experimentB_forEachRemove_usuallyThrows() {
+    void optionB_wrong_forEachRemoveUsuallyThrows() {
         assertThatThrownBy(() -> {
             List<String> list = abc();
             for (String s : list) if (s.equals("a")) list.remove(s);
         }).isInstanceOf(ConcurrentModificationException.class);
+        McqSupport.show("remove \"a\" (first) in for-each          -> ConcurrentModificationException");
 
-        // The trap: removing the SECOND-TO-LAST element makes hasNext() return false before next() can notice. No exception, but silently wrong.
         List<String> list = abc();
         for (String s : list) if (s.equals("b")) list.remove(s);
+        McqSupport.show("remove \"b\" (second-to-last) in for-each -> no exception, list = %s  (accident: loop ended early)", list);
         assertThat(list).containsExactly("a", "c");
-        // Verdict: B is false - "always works" is wrong; it throws in most cases and is only accidentally fine in this special one.
     }
 
-    // PURPOSE: Experiment for option C - modifying the source from inside a stream also fails (streams do not support interfering with their source).
+    // PURPOSE: Option C is WRONG - changing the source inside stream().forEach throws too.
     @Test
-    void experimentC_streamForEachRemove() {
+    void optionC_wrong_streamForEachRemove() {
         List<String> list = abc();
-        assertThatThrownBy(() -> list.stream().forEach(list::remove)).isInstanceOf(ConcurrentModificationException.class);
-        // Verdict: C is false.
+        McqSupport.attempt("list.stream().forEach(list::remove)", () -> list.stream().forEach(list::remove));
+        List<String> l2 = abc();
+        assertThatThrownBy(() -> l2.stream().forEach(l2::remove)).isInstanceOf(ConcurrentModificationException.class);
     }
 
-    // PURPOSE: Experiment for option D - an unmodifiable wrapper rejects every change, so remove() throws UnsupportedOperationException.
+    // PURPOSE: Option D is WRONG - an unmodifiable view rejects all changes.
     @Test
-    void experimentD_unmodifiableCannotRemove() {
+    void optionD_wrong_unmodifiableCannotRemove() {
         List<String> view = Collections.unmodifiableList(abc());
+        McqSupport.attempt("unmodifiableList(list).remove(\"a\")", () -> view.remove("a"));
         assertThatThrownBy(() -> view.remove("a")).isInstanceOf(UnsupportedOperationException.class);
-        // Verdict: D is false.
     }
 }

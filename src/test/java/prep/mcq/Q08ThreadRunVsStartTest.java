@@ -15,61 +15,65 @@ import org.junit.jupiter.api.Test;
  *   B. An IllegalThreadStateException is thrown.
  *   C. The code never runs.
  *   D. The code runs in the calling thread; no new thread is created.
+ *
+ * ANSWER: D
+ *
+ * WHY:
+ *   A. Wrong - only start() asks the JVM to create a new thread.
+ *   B. Wrong - IllegalThreadStateException is thrown when you call start() a SECOND time, not for run().
+ *   C. Wrong - the body does run, just in the wrong thread.
+ *   D. Correct - run() is an ordinary method call.
+ *
+ * See it run:  ./run.sh mcq Q08
  */
 class Q08ThreadRunVsStartTest {
-    /** Your answer: 'A', 'B', 'C' or 'D'. Leave '?' to skip. */
-    private static final char MY_ANSWER = '?';
-    private static final char CORRECT = 'D';
 
-    // PURPOSE: Check your answer. Skipped until you set MY_ANSWER; fails if it is wrong.
+    // PURPOSE: Demo - print the name of the thread that executes the body, once via run() and once via start().
     @Test
-    void checkMyAnswer() {
-        McqSupport.check(MY_ANSWER, CORRECT);
-    }
-
-    // PURPOSE: Concept - record the name of the thread that executes the body, once via run() and once via start().
-    @Test
-    void concept_whichThreadRunsTheBody() throws Exception {
+    void demo_whichThreadRunsTheBody() throws Exception {
         AtomicReference<String> ranOn = new AtomicReference<>();
         Thread t = new Thread(() -> ranOn.set(Thread.currentThread().getName()), "worker-1");
 
-        t.run();                                                         // plain method call
+        McqSupport.show("calling thread          : %s", Thread.currentThread().getName());
+        t.run();
+        McqSupport.show("t.run()   body ran on   : %s   <- the calling thread, no new thread", ranOn.get());
         assertThat(ranOn.get()).isEqualTo(Thread.currentThread().getName());
 
         Thread t2 = new Thread(() -> ranOn.set(Thread.currentThread().getName()), "worker-2");
-        t2.start();                                                      // really starts a new thread
+        t2.start();
         t2.join();
+        McqSupport.show("t2.start() body ran on  : %s   <- a real new thread", ranOn.get());
         assertThat(ranOn.get()).isEqualTo("worker-2");
     }
 
-    // PURPOSE: Experiment for option A - after run(), the thread object was never started (state NEW), so no new thread was created.
+    // PURPOSE: Option A is WRONG - after run() the thread was never started (state NEW).
     @Test
-    void experimentA_runCreatesNoThread() {
+    void optionA_wrong_runCreatesNoThread() {
         Thread t = new Thread(() -> { });
         t.run();
+        McqSupport.show("state after run() = %s, isAlive = %s", t.getState(), t.isAlive());
         assertThat(t.getState()).isEqualTo(Thread.State.NEW);
         assertThat(t.isAlive()).isFalse();
-        // Verdict: A is false.
     }
 
-    // PURPOSE: Experiment for option B - IllegalThreadStateException is real, but it comes from calling start() TWICE, not from run().
+    // PURPOSE: Option B is WRONG - run() can be called any number of times; the exception belongs to calling start() twice.
     @Test
-    void experimentB_exceptionIsForStartingTwice() throws Exception {
+    void optionB_wrong_exceptionIsForStartingTwice() throws Exception {
         Thread t = new Thread(() -> { });
-        t.run();
-        t.run();                                                         // run() any number of times: fine
+        McqSupport.attempt("t.run()", t::run);
+        McqSupport.attempt("t.run() again", t::run);
         t.start();
         t.join();
+        McqSupport.attempt("t.start() a second time", t::start);
         assertThatThrownBy(t::start).isInstanceOf(IllegalThreadStateException.class);
-        // Verdict: B is false for run(); a thread can be started only once.
     }
 
-    // PURPOSE: Experiment for option C - the body does run (just in the wrong thread).
+    // PURPOSE: Option C is WRONG - the body does run.
     @Test
-    void experimentC_bodyDoesRun() {
+    void optionC_wrong_bodyDoesRun() {
         AtomicReference<Boolean> ran = new AtomicReference<>(false);
         new Thread(() -> ran.set(true)).run();
+        McqSupport.show("body executed: %s", ran.get());
         assertThat(ran.get()).isTrue();
-        // Verdict: C is false.
     }
 }

@@ -19,12 +19,19 @@ import org.junit.jupiter.api.Test;
  *   B. It does not compile: static methods cannot be called on an instance.
  *   C. It throws an exception.
  *   D. A
+ *
+ * ANSWER: D
+ *
+ * WHY:
+ *   A. Wrong - static methods are chosen by the DECLARED type of the reference (A), not the real object (B).
+ *   B. Wrong - it compiles (only a style warning); better write A.who().
+ *   C. Wrong - no exception, not even if the reference is null, because no object is needed for a static call.
+ *   D. Correct - B.who() HIDES A.who(); it does not override it. Instance methods are the ones with runtime polymorphism.
+ *
+ * See it run:  ./run.sh mcq Q16
  */
 @SuppressWarnings("static")
 class Q16StaticMethodHidingTest {
-    /** Your answer: 'A', 'B', 'C' or 'D'. Leave '?' to skip. */
-    private static final char MY_ANSWER = '?';
-    private static final char CORRECT = 'D';
 
     static class A {
         static String who() { return "A"; }
@@ -36,33 +43,29 @@ class Q16StaticMethodHidingTest {
         @Override String name() { return "B"; }     // really overrides
     }
 
-    // PURPOSE: Check your answer. Skipped until you set MY_ANSWER; fails if it is wrong.
+    // PURPOSE: Demo - same object (a B), two kinds of method: instance method follows the real type, static method follows the declared type.
     @Test
-    void checkMyAnswer() {
-        McqSupport.check(MY_ANSWER, CORRECT);
+    void demo_staticByDeclaredTypeInstanceByRealType() {
+        A a = new B();
+        McqSupport.show("A a = new B();");
+        McqSupport.show("a.name()  = %s   (instance method: real type B wins - overriding)", a.name());
+        McqSupport.show("a.who()   = %s   (static method: declared type A wins - hiding)", a.who());
+        assertThat(a.name()).isEqualTo("B");
+        assertThat(a.who()).isEqualTo("A");
     }
 
-    // PURPOSE: Concept - an instance method is chosen by the REAL object type (polymorphism); a static method by the DECLARED type of the reference.
+    // PURPOSE: Option A is WRONG - only changing the DECLARED type changes the answer.
     @Test
-    void concept_staticByDeclaredTypeInstanceByRealType() {
+    void optionA_wrong_declaredTypeDecides() {
         A a = new B();
-        assertThat(a.name()).isEqualTo("B");         // overriding: runtime type B wins
-        assertThat(a.who()).isEqualTo("A");          // hiding: declared type A wins
-    }
-
-    // PURPOSE: Experiment for option A - does the reference variable's runtime type (B) decide? Only if we change the DECLARED type.
-    @Test
-    void experimentA_declaredTypeDecides() {
-        A a = new B();
-        assertThat(((B) a).who()).isEqualTo("B");    // cast changes the declared type
-        assertThat(B.who()).isEqualTo("B");
+        McqSupport.show("((B) a).who() = %s,  B.who() = %s,  A.who() = %s", ((B) a).who(), B.who(), A.who());
+        assertThat(((B) a).who()).isEqualTo("B");
         assertThat(A.who()).isEqualTo("A");
-        // Verdict: A is false.
     }
 
-    // PURPOSE: Experiment for option B - it does compile: Java lets you call a static method through an instance reference (the compiler only warns). We compile the exact snippet.
+    // PURPOSE: Option B is WRONG - the exact snippet compiles (checked with the real compiler).
     @Test
-    void experimentB_compiles() {
+    void optionB_wrong_compiles() {
         String source = """
                 public class Snippet {
                     static class A { static String who() { return "A"; } }
@@ -70,15 +73,16 @@ class Q16StaticMethodHidingTest {
                     static String run() { A a = new B(); return a.who(); }
                 }
                 """;
-        assertThat(McqSupport.compileErrors("Snippet", source)).isEmpty();
-        // Verdict: B is false. Best practice: always write A.who(), never a.who().
+        var errors = McqSupport.compileErrors("Snippet", source);
+        McqSupport.show("compiler errors: %s", errors.isEmpty() ? "none - it compiles" : errors);
+        assertThat(errors).isEmpty();
     }
 
-    // PURPOSE: Experiment for option C - a null reference does not even matter for a static call, because no object is needed.
+    // PURPOSE: Option C is WRONG - a null reference does not matter for a static call, because the method is resolved at compile time.
     @Test
-    void experimentC_noException_evenWithNullReference() {
+    void optionC_wrong_noExceptionEvenWithNullReference() {
         A nothing = null;
-        assertThat(nothing.who()).isEqualTo("A");    // no NullPointerException: resolved at compile time from the declared type A
-        // Verdict: C is false.
+        McqSupport.show("A nothing = null;  nothing.who() = %s   (no NullPointerException)", nothing.who());
+        assertThat(nothing.who()).isEqualTo("A");
     }
 }

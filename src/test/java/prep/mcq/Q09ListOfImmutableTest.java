@@ -18,66 +18,74 @@ import org.junit.jupiter.api.Test;
  *   B. It allows null elements.
  *   C. It returns an immutable list: add/set/remove throw UnsupportedOperationException, and null elements are rejected with NullPointerException.
  *   D. It returns a synchronized (thread-safe wrapper) list.
+ *
+ * ANSWER: C
+ *
+ * WHY:
+ *   A. Wrong - even set() throws (unlike Arrays.asList).
+ *   B. Wrong - List.of("a", null) throws NullPointerException.
+ *   C. Correct - immutable, null-hostile; safe to share between threads because it can never change.
+ *   D. Wrong - it is an immutable implementation class, not a synchronized wrapper.
+ *
+ * See it run:  ./run.sh mcq Q09
  */
 class Q09ListOfImmutableTest {
-    /** Your answer: 'A', 'B', 'C' or 'D'. Leave '?' to skip. */
-    private static final char MY_ANSWER = '?';
-    private static final char CORRECT = 'C';
 
-    // PURPOSE: Check your answer. Skipped until you set MY_ANSWER; fails if it is wrong.
+    // PURPOSE: Demo - try every kind of modification on List.of(...) and see which exception each one gives.
     @Test
-    void checkMyAnswer() {
-        McqSupport.check(MY_ANSWER, CORRECT);
-    }
-
-    // PURPOSE: Concept - try every kind of modification on List.of(...).
-    @Test
-    void concept_everyModificationFails() {
+    void demo_everyModificationFails() {
         List<String> l = List.of("a", "b");
+        McqSupport.attempt("l.add(\"c\")", () -> l.add("c"));
+        McqSupport.attempt("l.set(0, \"x\")", () -> l.set(0, "x"));
+        McqSupport.attempt("l.remove(0)", () -> l.remove(0));
+        McqSupport.attempt("l.clear()", l::clear);
+        McqSupport.attempt("l.sort(null)", () -> l.sort(null));
+        McqSupport.attempt("l.get(0) (a read)", () -> l.get(0));
         assertThatThrownBy(() -> l.add("c")).isInstanceOf(UnsupportedOperationException.class);
         assertThatThrownBy(() -> l.set(0, "x")).isInstanceOf(UnsupportedOperationException.class);
-        assertThatThrownBy(() -> l.remove(0)).isInstanceOf(UnsupportedOperationException.class);
-        assertThatThrownBy(l::clear).isInstanceOf(UnsupportedOperationException.class);
-        assertThatThrownBy(() -> l.sort(null)).isInstanceOf(UnsupportedOperationException.class);
     }
 
-    // PURPOSE: Experiment for option A - contrast with Arrays.asList (writes allowed) to show List.of does not even allow set().
+    // PURPOSE: Option A is WRONG - contrast with Arrays.asList where set() works; List.of does not even allow that.
     @Test
-    void experimentA_notMutable() {
-        assertThat(Arrays.asList("a", "b").set(0, "x")).isEqualTo("a");  // Arrays.asList: set works
+    void optionA_wrong_notMutable() {
+        McqSupport.attempt("Arrays.asList(...).set(0, x)", () -> Arrays.asList("a", "b").set(0, "x"));
+        McqSupport.attempt("List.of(...).set(0, x)", () -> List.of("a", "b").set(0, "x"));
         assertThatThrownBy(() -> List.of("a", "b").set(0, "x")).isInstanceOf(UnsupportedOperationException.class);
-        // Verdict: A is false.
     }
 
-    // PURPOSE: Experiment for option B - null elements are rejected when creating the list (and even when asking contains(null)).
+    // PURPOSE: Option B is WRONG - nulls are rejected when creating the list, and even by contains(null).
     @Test
-    void experimentB_nullsRejected() {
+    void optionB_wrong_nullsRejected() {
+        McqSupport.attempt("List.of(\"a\", null)", () -> List.of("a", null));
+        McqSupport.attempt("List.of(\"a\").contains(null)", () -> List.of("a").contains(null));
+        McqSupport.attempt("Arrays.asList(\"a\", null)", () -> Arrays.asList("a", null));
+        McqSupport.attempt("new ArrayList<>().add(null)", () -> new ArrayList<String>().add(null));
         assertThatThrownBy(() -> List.of("a", null)).isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> List.of("a").contains(null)).isInstanceOf(NullPointerException.class);
-        assertThat(Arrays.asList("a", null)).hasSize(2);       // Arrays.asList and ArrayList do allow null
-        // Verdict: B is false.
+        assertThat(Arrays.asList("a", null)).hasSize(2);
     }
 
-    // PURPOSE: Experiment for option C - immutable, and it is a snapshot: later changes to the source list do not show up (unlike an unmodifiable view).
+    // PURPOSE: Option C is CORRECT - and List.copyOf is an immutable SNAPSHOT, unlike unmodifiableList which is a read-only VIEW.
     @Test
-    void experimentC_immutableSnapshot() {
+    void optionC_correct_immutableSnapshotVersusView() {
         List<String> source = new ArrayList<>(List.of("a", "b"));
-        List<String> copy = List.copyOf(source);                          // immutable snapshot
-        List<String> view = Collections.unmodifiableList(source);         // read-only VIEW
+        List<String> copy = List.copyOf(source);
+        List<String> view = Collections.unmodifiableList(source);
         source.add("c");
+        McqSupport.show("source after add(\"c\")                 : %s", source);
+        McqSupport.show("List.copyOf(source)  (snapshot)         : %s   <- unchanged", copy);
+        McqSupport.show("Collections.unmodifiableList (view)     : %s   <- sees the change", view);
         assertThat(copy).containsExactly("a", "b");
-        assertThat(view).containsExactly("a", "b", "c");                  // the view sees the change
-        // Verdict: C is true. Immutable means nobody can change it, so it is safe to share between threads without locking.
+        assertThat(view).containsExactly("a", "b", "c");
     }
 
-    // PURPOSE: Experiment for option D - List.of is not a synchronized wrapper; it is a different, immutable implementation class.
+    // PURPOSE: Option D is WRONG - List.of is a different (immutable) class than a synchronized wrapper.
     @Test
-    void experimentD_notASynchronizedWrapper() {
+    void optionD_wrong_notASynchronizedWrapper() {
         Class<?> immutable = List.of("a").getClass();
         Class<?> synced = Collections.synchronizedList(new ArrayList<String>()).getClass();
+        McqSupport.show("List.of(...)                       is %s", immutable.getName());
+        McqSupport.show("Collections.synchronizedList(...)  is %s", synced.getName());
         assertThat(immutable).isNotEqualTo(synced);
         assertThat(synced.getSimpleName()).contains("Synchronized");
-        assertThat(immutable.getSimpleName()).doesNotContain("Synchronized");
-        // Verdict: D is false.
     }
 }

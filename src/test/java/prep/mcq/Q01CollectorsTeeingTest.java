@@ -24,88 +24,101 @@ import org.junit.jupiter.api.Test;
  *   C. It filters out duplicate elements from a stream based on two distinct fields.
  *   D. It tees stream logging data directly into an external file system or network socket.
  *
- * HOW TO USE: 1) Decide your answer WITHOUT reading below.  2) Set MY_ANSWER.
- *             3) ./run.sh mcq Q01   4) Read the experiment tests: each gathers evidence about one option.
+ * ANSWER: B
  *
- * NOTE: teeing() was actually added in Java 12, not 11. Real tests sometimes contain small mistakes like
- * this; pick the option that best fits the concept.
+ * WHY:
+ *   A. Wrong - no parallel streams are created. Every element is handed to BOTH collectors in the same single pass, on the same thread.
+ *   B. Correct - collector 1 and collector 2 each build a result; the BiFunction merges them into one value.
+ *   C. Wrong - teeing does no filtering. Duplicates stay; use distinct() or a Set collector to remove them.
+ *   D. Wrong - the signature is (Collector, Collector, BiFunction). No file, socket or logging is involved. The name comes from the Unix 'tee' command.
+ *
+ * NOTE: teeing() was added in Java 12, not 11 (small mistakes like this appear in real tests; pick the best-fitting option).
+ *
+ * Picture:
+ *                +--> collector 1 --+
+ *     elements --+                  +--> merger (BiFunction) --> ONE result
+ *                +--> collector 2 --+
+ *
+ * See it run:  ./run.sh mcq Q01     (what each demo prints is shown under its test)
  */
 class Q01CollectorsTeeingTest {
-    /** Your answer: 'A', 'B', 'C' or 'D'. Leave '?' to skip. */
-    private static final char MY_ANSWER = '?';
-    private static final char CORRECT = 'B';
-
     record Range(int min, int max) {}
 
-    // PURPOSE: Check your answer. Skipped until you set MY_ANSWER; fails if it is wrong.
+    // PURPOSE: Demo - min and max of the same data computed together in ONE pass, then merged into a Range.
     @Test
-    void checkMyAnswer() {
-        McqSupport.check(MY_ANSWER, CORRECT);
-    }
-
-    // PURPOSE: Concept - two collectors (min and max) fed by ONE pass over the data, results combined by a function.
-    @Test
-    void concept_minAndMaxInOnePass() {
+    void demo_minAndMaxInOnePass() {
+        McqSupport.show("input            : [5, 3, 9, 1]");
         Range range = Stream.of(5, 3, 9, 1).collect(teeing(
                 minBy(Comparator.<Integer>naturalOrder()),
                 maxBy(Comparator.<Integer>naturalOrder()),
-                (min, max) -> new Range(min.get(), max.get())));
+                (min, max) -> {
+                    McqSupport.show("collector 1 result: min = %s", min);
+                    McqSupport.show("collector 2 result: max = %s", max);
+                    return new Range(min.get(), max.get());
+                }));
+        McqSupport.show("merged result    : %s", range);
         assertThat(range).isEqualTo(new Range(1, 9));
     }
 
-    // PURPOSE: Concept - the classic use: average = sum / count, computed in a single pass.
+    // PURPOSE: Demo - the classic use: average = sum / count, computed in a single pass.
     @Test
-    void concept_averageFromSumAndCount() {
+    void demo_averageFromSumAndCount() {
         double avg = Stream.of(5, 3, 9, 1).collect(teeing(
                 summingInt(i -> i),
                 counting(),
-                (sum, count) -> (double) sum / count));
+                (sum, count) -> {
+                    McqSupport.show("sum = %d, count = %d  ->  average = sum / count", sum, count);
+                    return (double) sum / count;
+                }));
         assertThat(avg).isEqualTo(4.5);
     }
 
-    // PURPOSE: Experiment for option A - are the data processed in parallel on several threads? Measure threads used and how often each element is visited.
+    // PURPOSE: Option A is WRONG - measure it: not parallel, each element visited once although two collectors consume it, all on the calling thread.
     @Test
-    void experimentA_noParallelismAndOnlyOneTraversal() {
+    void optionA_wrong_noParallelismOnlyOneTraversal() {
         Set<String> threads = ConcurrentHashMap.newKeySet();
         AtomicInteger visits = new AtomicInteger();
         Stream<Integer> stream = Stream.of(1, 2, 3, 4, 5).peek(x -> {
             visits.incrementAndGet();
             threads.add(Thread.currentThread().getName());
         });
+        McqSupport.show("stream.isParallel()  = %s", stream.isParallel());
         assertThat(stream.isParallel()).isFalse();
         stream.collect(teeing(counting(), summingInt(i -> i), (n, sum) -> n + sum));
-
-        assertThat(visits.get()).isEqualTo(5);                                   // each element seen ONCE, though two collectors consume it
-        assertThat(threads).containsExactly(Thread.currentThread().getName());  // everything ran on the calling thread
-        // Verdict: A is false. teeing does not create parallel streams; it feeds each element to both collectors in the same pass.
+        McqSupport.show("elements in source   = 5, two collectors, element visits = %d  (ONE pass)", visits.get());
+        McqSupport.show("threads used         = %s  (calling thread: %s)", threads, Thread.currentThread().getName());
+        assertThat(visits.get()).isEqualTo(5);
+        assertThat(threads).containsExactly(Thread.currentThread().getName());
     }
 
-    // PURPOSE: Experiment for option B - the result of both collectors is merged by the BiFunction into one value.
+    // PURPOSE: Option B is CORRECT - two results merged by a BiFunction into one value.
     @Test
-    void experimentB_mergesTwoResultsWithABiFunction() {
+    void optionB_correct_mergesTwoResultsWithABiFunction() {
         String merged = Stream.of("a", "b", "c").collect(teeing(
                 counting(),
                 joining(","),
                 (count, text) -> count + " items: " + text));
+        McqSupport.show("counting()  -> 3");
+        McqSupport.show("joining(\",\") -> a,b,c");
+        McqSupport.show("merger      -> \"%s\"", merged);
         assertThat(merged).isEqualTo("3 items: a,b,c");
-        // Verdict: B is true - exactly the definition of teeing().
     }
 
-    // PURPOSE: Experiment for option C - does teeing remove duplicates? Feed it duplicates and look at what a collector inside still sees.
+    // PURPOSE: Option C is WRONG - duplicates are not removed; teeing does not filter.
     @Test
-    void experimentC_doesNotRemoveDuplicates() {
+    void optionC_wrong_doesNotRemoveDuplicates() {
         var list = Stream.of(1, 1, 2).collect(teeing(toList(), counting(), (l, n) -> l));
-        assertThat(list).containsExactly(1, 1, 2);   // duplicates are still there
-        // Verdict: C is false. To drop duplicates use distinct() or a Set collector, not teeing.
+        McqSupport.show("input [1, 1, 2]  -> list seen by the collector: %s  (duplicates still there)", list);
+        assertThat(list).containsExactly(1, 1, 2);
     }
 
-    // PURPOSE: Experiment for option D - look at teeing's method signature using reflection: is there any file, socket or logging parameter?
+    // PURPOSE: Option D is WRONG - teeing's only signature has no file, socket or logging parameter (checked by reflection).
     @Test
-    void experimentD_signatureHasNoIoParameters() {
+    void optionD_wrong_signatureHasNoIoParameters() {
         var methods = Arrays.stream(Collectors.class.getMethods()).filter(m -> m.getName().equals("teeing")).toList();
+        McqSupport.show("methods named teeing : %d", methods.size());
+        for (Class<?> type : methods.get(0).getParameterTypes()) McqSupport.show("  parameter type      : %s", type.getSimpleName());
         assertThat(methods).hasSize(1);
         assertThat(methods.get(0).getParameterTypes()).containsExactly(Collector.class, Collector.class, BiFunction.class);
-        // Verdict: D is false. Two collectors and a merge function - nothing about files, sockets or logging.
-        // (The name comes from the Unix 'tee' command, which copies data to two places; that is the only link to "tee".)
     }
 }

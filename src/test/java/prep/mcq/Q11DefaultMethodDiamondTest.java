@@ -14,11 +14,18 @@ import org.junit.jupiter.api.Test;
  *   B. It does not compile, unless C overrides m() itself (it can delegate with A.super.m() or B.super.m()).
  *   C. It compiles but throws an AbstractMethodError when m() is called.
  *   D. It compiles; the default from the last-listed interface (B) is used.
+ *
+ * ANSWER: B
+ *
+ * WHY:
+ *   A. Wrong - the compiler refuses to guess; the order of the interfaces is irrelevant.
+ *   B. Correct - "class C inherits unrelated defaults for m() from types A and B". Override m() to resolve.
+ *   C. Wrong - the problem is caught at compile time, so there is no runtime state to fail in.
+ *   D. Wrong - same as A.
+ *
+ * See it run:  ./run.sh mcq Q11
  */
 class Q11DefaultMethodDiamondTest {
-    /** Your answer: 'A', 'B', 'C' or 'D'. Leave '?' to skip. */
-    private static final char MY_ANSWER = '?';
-    private static final char CORRECT = 'B';
 
     private static String source(String implementsClause, String body) {
         return """
@@ -30,47 +37,44 @@ class Q11DefaultMethodDiamondTest {
                 """.formatted(implementsClause, body);
     }
 
-    // PURPOSE: Check your answer. Skipped until you set MY_ANSWER; fails if it is wrong.
+    // PURPOSE: Demo - the fix: override m() and choose (or combine) the inherited defaults with X.super.m().
     @Test
-    void checkMyAnswer() {
-        McqSupport.check(MY_ANSWER, CORRECT);
-    }
-
-    // PURPOSE: Concept - the fix: override m() and choose (or combine) the inherited defaults with X.super.m().
-    @Test
-    void concept_resolveByOverriding() {
+    void demo_resolveByOverriding() {
         interface A { default String m() { return "A"; } }
         interface B { default String m() { return "B"; } }
         class C implements A, B {
             @Override public String m() { return A.super.m() + B.super.m(); }
         }
+        McqSupport.show("new C().m() = %s   (A.super.m() + B.super.m())", new C().m());
         assertThat(new C().m()).isEqualTo("AB");
     }
 
-    // PURPOSE: Experiment for options A and D - if either rule existed, the code would compile. We run the real compiler on it.
+    // PURPOSE: Options A and D are WRONG - run the real compiler on both interface orders: both are rejected.
     @Test
-    void experimentAandD_compilerRejectsBothOrders() {
+    void optionAandD_wrong_compilerRejectsBothOrders() {
         List<String> errorsAB = McqSupport.compileErrors("Snippet", source("A, B", ""));
         List<String> errorsBA = McqSupport.compileErrors("Snippet", source("B, A", ""));
+        McqSupport.show("implements A, B -> %s", errorsAB);
+        McqSupport.show("implements B, A -> %s", errorsBA);
         assertThat(errorsAB).isNotEmpty();
-        assertThat(errorsBA).isNotEmpty();                      // swapping the order does not help
+        assertThat(errorsBA).isNotEmpty();
         assertThat(String.join(" ", errorsAB)).contains("unrelated defaults");
-        // Verdict: A and D are false. The order of the interfaces is irrelevant; the compiler refuses to guess.
     }
 
-    // PURPOSE: Experiment for option B - overriding m() makes the very same code compile.
+    // PURPOSE: Option B is CORRECT - overriding m() makes the very same code compile.
     @Test
-    void experimentB_overrideCompiles() {
+    void optionB_correct_overrideCompiles() {
         String fixed = source("A, B", "public String m() { return A.super.m(); }");
-        assertThat(McqSupport.compileErrors("Snippet", fixed)).isEmpty();
-        // Verdict: B is true.
+        var errors = McqSupport.compileErrors("Snippet", fixed);
+        McqSupport.show("with `public String m() { return A.super.m(); }` -> errors: %s", errors);
+        assertThat(errors).isEmpty();
     }
 
-    // PURPOSE: Experiment for option C - the problem is reported at COMPILE time, so there is never a runtime state to fail in.
+    // PURPOSE: Option C is WRONG - the error exists at COMPILE time (exactly one compile error), so no class file is produced to fail later.
     @Test
-    void experimentC_failsAtCompileTimeNotRuntime() {
+    void optionC_wrong_failsAtCompileTimeNotRuntime() {
         assertThat(McqSupport.compileErrors("Snippet", source("A, B", ""))).hasSize(1);
-        // Verdict: C is false.
+        McqSupport.show("exactly one compile error, reported before anything can run");
     }
 
     // PURPOSE: Bonus rule - if one interface extends the other and overrides m(), the more specific default wins and there is no conflict.
@@ -79,6 +83,7 @@ class Q11DefaultMethodDiamondTest {
         interface Base { default String m() { return "Base"; } }
         interface Special extends Base { @Override default String m() { return "Special"; } }
         class C implements Base, Special { }
+        McqSupport.show("class C implements Base, Special -> m() = %s", new C().m());
         assertThat(new C().m()).isEqualTo("Special");
     }
 }

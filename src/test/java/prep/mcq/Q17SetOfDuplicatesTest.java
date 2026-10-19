@@ -20,49 +20,58 @@ import org.junit.jupiter.api.Test;
  *   B. It throws NullPointerException.
  *   C. It throws IllegalArgumentException (duplicate element).
  *   D. It throws UnsupportedOperationException.
+ *
+ * ANSWER: C
+ *
+ * WHY:
+ *   A. Wrong - Set.of treats a duplicate as a programming error. (HashSet and Set.copyOf DO silently drop duplicates.)
+ *   B. Wrong - NullPointerException is what Set.of throws for a null element.
+ *   C. Correct - "duplicate element: a". Map.of does the same for duplicate keys.
+ *   D. Wrong - UnsupportedOperationException is what you get when you try to MODIFY the finished immutable set.
+ *
+ * See it run:  ./run.sh mcq Q17
  */
 class Q17SetOfDuplicatesTest {
-    /** Your answer: 'A', 'B', 'C' or 'D'. Leave '?' to skip. */
-    private static final char MY_ANSWER = '?';
-    private static final char CORRECT = 'C';
 
-    // PURPOSE: Check your answer. Skipped until you set MY_ANSWER; fails if it is wrong.
+    // PURPOSE: Demo - see the exact exception message for Set.of and Map.of duplicates.
     @Test
-    void checkMyAnswer() {
-        McqSupport.check(MY_ANSWER, CORRECT);
+    void demo_duplicatesAreRejected() {
+        try {
+            Set.of("a", "a");
+        } catch (IllegalArgumentException e) {
+            McqSupport.show("Set.of(\"a\", \"a\")        -> %s: %s", e.getClass().getSimpleName(), e.getMessage());
+        }
+        try {
+            Map.of("k", 1, "k", 2);
+        } catch (IllegalArgumentException e) {
+            McqSupport.show("Map.of(\"k\",1,\"k\",2)    -> %s: %s", e.getClass().getSimpleName(), e.getMessage());
+        }
+        assertThatThrownBy(() -> Set.of("a", "a")).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("duplicate element");
+        assertThatThrownBy(() -> Map.of("k", 1, "k", 2)).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("duplicate key");
     }
 
-    // PURPOSE: Concept - Set.of treats a duplicate as a programming error and refuses it; Map.of does the same for duplicate keys.
+    // PURPOSE: Option A is WRONG for Set.of - but these ways DO remove duplicates silently.
     @Test
-    void concept_duplicatesAreRejected() {
-        assertThatThrownBy(() -> Set.of("a", "a"))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("duplicate element");
-        assertThatThrownBy(() -> Map.of("k", 1, "k", 2))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("duplicate key");
-    }
-
-    // PURPOSE: Experiment for option A - sets that DO silently drop duplicates: HashSet, and Set.copyOf (which tolerates duplicates in its input).
-    @Test
-    void experimentA_otherWaysDoDeduplicate() {
+    void optionA_wrong_otherWaysDeduplicate() {
+        McqSupport.show("new HashSet<>(List.of(\"a\",\"a\")) = %s", new HashSet<>(List.of("a", "a")));
+        McqSupport.show("Set.copyOf(List.of(\"a\",\"a\"))    = %s", Set.copyOf(List.of("a", "a")));
         assertThat(new HashSet<>(List.of("a", "a"))).hasSize(1);
         assertThat(Set.copyOf(List.of("a", "a"))).containsExactly("a");
-        // Verdict: A is false for Set.of(...) itself.
     }
 
-    // PURPOSE: Experiment for option B - NullPointerException is what Set.of throws for a null element, a different mistake.
+    // PURPOSE: Option B is WRONG - NullPointerException is for a null element, a different mistake.
     @Test
-    void experimentB_npeIsForNull() {
+    void optionB_wrong_npeIsForNull() {
+        McqSupport.attempt("Set.of(\"a\", null)", () -> Set.of("a", null));
         assertThatThrownBy(() -> Set.of("a", null)).isInstanceOf(NullPointerException.class);
-        // Verdict: B is false for duplicates.
     }
 
-    // PURPOSE: Experiment for option D - UnsupportedOperationException is what you get when you try to MODIFY the finished set, not when creating it.
+    // PURPOSE: Option D is WRONG - UnsupportedOperationException happens when you MODIFY the set, not when creating it.
     @Test
-    void experimentD_uoeIsForModification() {
-        Set<String> s = Set.of("a", "b");                 // creation succeeds
+    void optionD_wrong_uoeIsForModification() {
+        Set<String> s = Set.of("a", "b");
+        McqSupport.show("creating Set.of(\"a\", \"b\") worked: %d elements", s.size());
+        McqSupport.attempt("s.add(\"c\")", () -> s.add("c"));
         assertThatThrownBy(() -> s.add("c")).isInstanceOf(UnsupportedOperationException.class);
-        // Verdict: D is false for creation with duplicates.
     }
 }

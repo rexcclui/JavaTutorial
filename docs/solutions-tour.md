@@ -11,6 +11,7 @@ Paths are under `solutions/java/prep/`.
 
 ## 2. collections
 - `collections/LruCache.java`: HashMap + doubly linked list with sentinel head/tail. Notice every operation is O(1) and why the map stores nodes, not values.
+- Test only: `WordCountWalkthroughTest`: takes one sentence through each stage of the word-count stream (lower-case, split, filter, groupingBy, counting). Run `./run.sh --verbose collections WordCountWalkthrough` to see the value after every stage.
 - `collections/CollectionPuzzles.java`: `twoSum` (complement map), `topKWords` (group + sort with comparator chain), `longestConsecutive` (start only at run beginnings, so O(n)).
 
 ## 3. algorithms

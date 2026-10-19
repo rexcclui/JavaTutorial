@@ -25,9 +25,9 @@ if [ $# -ge 1 ]; then
   if [ $# -ge 2 ]; then target=(-Dtest="prep.$1.$2*"); else target=(-Dtest="prep.$1.*Test"); fi
 fi
 
-echo ">> $MVN test ${flags[*]} ${target[*]:-}"
+echo ">> $MVN test ${flags[*]} ${target[*]-}"
 set +e
-"$MVN" "${flags[@]}" "${target[@]}" -Dsurefire.failIfNoSpecifiedTests=false test 2>&1 | grep -v '^Picked up JAVA_TOOL_OPTIONS'
+"$MVN" "${flags[@]}" ${target[@]+"${target[@]}"} -Dsurefire.failIfNoSpecifiedTests=false test 2>&1 | grep -v '^Picked up JAVA_TOOL_OPTIONS'
 status=${PIPESTATUS[0]}
 set -e
 if [ "$status" -eq 0 ]; then echo "ALL GREEN"; else echo "Some tests failed (expected for unsolved exercises). Exit code $status"; fi

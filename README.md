@@ -26,6 +26,7 @@ src/test/java/prep/<category>/    <- tests (same tests verify both)
 docs/<category>.md                <- guide: concepts, common questions, gotchas, links
 ```
 
+0. Just want to read? Run `./run.sh --learn` and follow [docs/solutions-tour.md](docs/solutions-tour.md).
 1. Read `docs/<category>.md`.
 2. Open an exercise in `exercises/`, read the Javadoc, implement it.
 3. `./run.sh <category>` until green.

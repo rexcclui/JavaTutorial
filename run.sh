@@ -4,6 +4,7 @@
 #   ./run.sh collections          run one category
 #   ./run.sh core PointTest       run one test class in a category
 #   ./run.sh --solutions [cat]    run against the reference solutions (sanity check / peek)
+#   ./run.sh --learn [cat]        run reference solutions and list every behaviour that passes (read-only learning mode)
 #   ./run.sh --verbose ...        show the raw Maven output
 #   ./run.sh --list               list categories
 set -euo pipefail
@@ -18,10 +19,12 @@ categories() { ls src/test/java/prep | grep -v '\.java$' | sort; }
 
 flags=(-q -B)
 verbose=0
+learn=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --list) categories; exit 0 ;;
     --solutions) flags+=(-Dsolutions); shift ;;
+    --learn) flags+=(-Dsolutions); learn=1; shift ;;
     --verbose) verbose=1; shift ;;
     *) break ;;
   esac
@@ -47,6 +50,17 @@ if [ "$verbose" -eq 1 ]; then grep -v '^Picked up JAVA_TOOL_OPTIONS' "$out"; fi
 
 if [ "$status" -eq 0 ]; then
   echo "ALL GREEN - every test passed."
+  if [ "$learn" -eq 1 ]; then
+    echo
+    echo "What the reference solutions do (each line = one verified behaviour):"
+    grep -h -o '<testcase name="[^"]*" classname="[^"]*"' target/surefire-reports/TEST-*.xml 2>/dev/null \
+      | grep -vi 'name="level[0-9]' | sed -E 's/<testcase name="([^"]*)" classname="prep\.([^.]*)\.([^"]*)"/\2 \3 \1/' | sort -u \
+      | awk '{ if ($1 != c) { c = $1; printf "\n[%s]  read: solutions/java/prep/%s/\n", c, c }
+               if ($2 != k) { k = $2; printf "  %s\n", k }
+               n = $3; sub(/\(\).*/, "", n); printf "      ok  %s\n", n }'
+    echo
+    echo "Reading order and what to notice in each file: docs/solutions-tour.md"
+  fi
   exit 0
 fi
 

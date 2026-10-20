@@ -125,6 +125,14 @@ class DemoApplicationTest {
     }
 
     @Test
+    void callStackShowsDispatcherServletBeforeTheController() throws Exception {
+        mvc.perform(get("/api/debug/stack"))
+                .andExpect(jsonPath("$", hasItem("DispatcherServlet.doDispatch()")))
+                .andExpect(jsonPath("$", hasItem("InvocableHandlerMethod.invokeForRequest()")))
+                .andExpect(jsonPath("$", hasItem("InfoController.stack()")));
+    }
+
+    @Test
     void beansInjectedAreProxies() throws Exception {
         mvc.perform(get("/api/debug/proxies"))
                 .andExpect(jsonPath("$.bookServiceIsCglibProxy").value(true))

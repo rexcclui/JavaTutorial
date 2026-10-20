@@ -64,6 +64,9 @@ GET http://localhost:8080/api/hello
 ### 16. The journey of a request: Filter -> Interceptor -> Controller -> AOP (same lines in the console)
 GET http://localhost:8080/api/debug/flow
 
+### 16b. The REAL call stack from Tomcat down to the controller method
+GET http://localhost:8080/api/debug/stack
+
 ### 17. The injected beans are generated proxies, not your classes
 GET http://localhost:8080/api/debug/proxies
 

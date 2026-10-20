@@ -29,6 +29,7 @@ curl -X POST localhost:8080/api/books -H 'Content-Type: application/json' \
 curl -X POST "localhost:8080/api/books/5/discount?percent=50" # UPDATE issued by dirty checking
 curl localhost:8080/api/hello                                 # configuration + active profile
 curl localhost:8080/api/debug/flow                            # the journey of a request
+curl localhost:8080/api/debug/stack                           # the real call stack: Tomcat -> filters -> DispatcherServlet -> your method
 curl localhost:8080/api/debug/proxies                         # injected beans are generated proxies
 curl localhost:8080/actuator/beans                            # every bean in the container
 curl localhost:8080/actuator/mappings                         # every URL mapping
@@ -50,6 +51,85 @@ Every request prints its journey on the `flow` logger, in this order:
 ```
 
 and every SQL statement Hibernate sends is printed (`select`, `insert`, `update`...).
+
+## Where does it all start? (entry point and request routing)
+
+### 1. Startup: `main()` is the only entry point you write
+
+```java
+public static void main(String[] args) { SpringApplication.run(DemoApplication.class, args); }
+```
+
+`SpringApplication.run` does, in order (compare with the console log):
+1. Creates the Spring container (ApplicationContext) and reads the configuration: `application.yml`, active profile.
+2. **Component scan** finds `@RestController`, `@Service`, `@Component`... below package `demo` and registers them as beans; **auto-configuration** adds what the classpath implies (web server, DispatcherServlet, Jackson, JPA, Actuator).
+3. Wires the beans together (constructor injection), wraps `BookService` in its proxy, creates the JPA repository proxy.
+4. **Builds the URL table:** `RequestMappingHandlerMapping` walks every bean, reads each `@GetMapping` / `@PostMapping`..., and stores `HTTP verb + URL pattern -> controller method` (see it at `/actuator/mappings`).
+5. Starts the embedded **Tomcat** web server on port 8080 and registers the `DispatcherServlet` and the filters in it.
+6. Runs `CommandLineRunner`s (`DataSeeder`). The application is now ready.
+
+Nothing in your code ever "listens" for requests: Tomcat owns the port, and Spring is the code Tomcat calls.
+
+### 2. A request arrives: the real call stack
+
+`curl localhost:8080/api/debug/stack` returns the actual chain of method calls (captured on the server, outermost first):
+
+```
+thread: http-nio-8080-exec-2                         <- a Tomcat worker thread takes the connection
+  NioEndpoint$SocketProcessor.doRun()                <- Tomcat reads the bytes from the socket
+    Http11Processor.service()                        <- parses the HTTP request (verb, URL, headers, body)
+      StandardWrapperValve.invoke()                  <- finds the servlet for the URL: the DispatcherServlet
+        CharacterEncodingFilter.doFilterInternal()   <- servlet FILTERS, outermost first
+          ServerHttpObservationFilter.doFilterInternal()
+            FormContentFilter.doFilterInternal()
+              RequestContextFilter.doFilterInternal()
+                RequestLoggingFilter.doFilterInternal()      <- our own filter (step 1 in the flow log)
+                  FrameworkServlet.service()                 <- the servlet part of Spring MVC starts here
+                    FrameworkServlet.doGet()                 <- chosen by the HTTP verb
+                      DispatcherServlet.doService()
+                        DispatcherServlet.doDispatch()       <- THE FRONT CONTROLLER: the heart of Spring MVC
+                          RequestMappingHandlerAdapter.handleInternal()
+                          RequestMappingHandlerAdapter.invokeHandlerMethod()
+                          InvocableHandlerMethod.invokeForRequest()   <- builds the arguments, then calls your method by reflection
+                          InvocableHandlerMethod.doInvoke()
+                          InfoController.stack()                     <- YOUR code
+```
+
+### 3. How the URL decides which logic runs: `DispatcherServlet.doDispatch()`
+
+```
+1. Handler lookup   RequestMappingHandlerMapping matches "GET /api/books/3" against the table built at startup
+                    -> BookController#get(Long)        (no match -> 404; URL matches but wrong verb -> 405;
+                                                         wrong Content-Type / Accept -> 415 / 406)
+2. Interceptors     HandlerInterceptor.preHandle(...)  (our FlowInterceptor, step 2 in the flow log)
+3. Arguments        argument resolvers fill the parameters:
+                      @PathVariable Long id        <- "3" from the URL path, converted to Long
+                      @RequestParam int page       <- from the query string
+                      @RequestBody Book book       <- JSON body read by Jackson, then @Valid is checked
+4. Invoke           your controller method runs (-> service proxy -> transaction -> repository -> SQL)
+5. Return value     @ResponseBody handling: Jackson converts the returned object to JSON, status 200
+                    (ResponseEntity lets you choose the status and headers)
+6. If an exception  exception resolvers find a matching @ExceptionHandler (our GlobalExceptionHandler) -> error response
+7. Interceptors     postHandle / afterCompletion
+8. Back out         through the filters (RequestLoggingFilter step 6) to Tomcat, which writes the response bytes
+```
+
+So the decision "which logic" is a table lookup of **HTTP verb + URL pattern**, built once at startup from your annotations. Real table of this app (from `/actuator/mappings`):
+
+```
+{GET [/api/books]}                  -> BookController#list(int, int)
+{GET [/api/books/{id}]}             -> BookController#get(Long)
+{GET [/api/books/search]}           -> BookController#search(String, String, BigDecimal)
+{POST [/api/books]}                 -> BookController#create(Book)
+{PUT [/api/books/{id}]}             -> BookController#update(Long, Book)
+{DELETE [/api/books/{id}]}          -> BookController#delete(Long)
+{POST [/api/books/{id}/discount]}   -> BookController#discount(Long, int)
+{POST [/api/books/batch]}           -> BookController#batch(List, boolean)
+```
+
+More specific patterns win: `/api/books/search` is chosen over `/api/books/{id}` for that URL.
+
+**Where to put a breakpoint to watch all of this:** in your IDE, run `DemoApplication` in debug mode and set a breakpoint in `BookController.get(...)`. The debugger's "Frames" panel shows the same stack as above. A second breakpoint inside `DispatcherServlet.doDispatch()` (a Spring class, step into it) shows `mappedHandler = getHandler(processedRequest)`: that line is the URL lookup.
 
 ## Experiments (each one teaches an interview topic)
 

@@ -4,6 +4,7 @@ import demo.book.BookRepository;
 import demo.book.BookService;
 import demo.config.DemoProperties;
 import jakarta.servlet.http.HttpServletRequest;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -61,6 +62,34 @@ public class InfoController {
         List<String> steps = FlowTrace.steps(request);
         steps.add("(5. Interceptor.postHandle and 6. Filter-after run after this method returns: see the console)");
         return steps;
+    }
+
+    /**
+     * GET /api/debug/stack - the REAL chain of method calls, from the web server's thread down to THIS method (outermost first).
+     * Only the interesting frames are kept: Tomcat, filters, DispatcherServlet, the handler adapter and your own code.
+     */
+    @GetMapping("/debug/stack")
+    public List<String> stack() {
+        List<String> frames = new ArrayList<>();
+        frames.add("thread: " + Thread.currentThread().getName());
+        StackTraceElement[] trace = Thread.currentThread().getStackTrace();
+        for (int i = trace.length - 1; i >= 0; i--) {              // the array is innermost-first; walk it outermost-first
+            String cls = trace[i].getClassName();
+            boolean interesting = cls.equals("org.apache.tomcat.util.net.NioEndpoint$SocketProcessor")
+                    || cls.equals("org.apache.coyote.http11.Http11Processor")
+                    || cls.equals("org.apache.catalina.core.StandardWrapperValve")
+                    || trace[i].getMethodName().equals("doFilterInternal")      // every Spring servlet filter, one line each
+                    || cls.equals("org.springframework.web.servlet.DispatcherServlet")
+                    || cls.equals("org.springframework.web.servlet.FrameworkServlet")
+                    || cls.equals("org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter")
+                    || cls.equals("org.springframework.web.method.support.InvocableHandlerMethod")
+                    || cls.startsWith("demo.");
+            if (!interesting) continue;
+            String simple = cls.substring(cls.lastIndexOf('.') + 1) + "." + trace[i].getMethodName() + "()";
+            if (!frames.isEmpty() && frames.get(frames.size() - 1).equals(simple)) continue;   // collapse repeats
+            frames.add(simple);
+        }
+        return frames;
     }
 
     /** GET /api/debug/proxies - the objects Spring injected are not your classes, they are generated proxies. */

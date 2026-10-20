@@ -1,0 +1,42 @@
+spring:
+  application:
+    name: spring-demo
+  datasource:
+    url: jdbc:h2:mem:demo;DB_CLOSE_DELAY=-1      # in-memory database: data disappears when the server stops
+    username: sa
+    password: ""
+  jpa:
+    hibernate:
+      ddl-auto: create-drop                      # Hibernate creates the tables from the @Entity classes at startup
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+  h2:
+    console:
+      enabled: true                              # browse the database at http://localhost:8080/h2-console
+  mvc:
+    problemdetails:
+      enabled: true                              # errors come back as RFC 7807 "problem details" JSON
+
+server:
+  port: 8080
+
+management:                                      # Actuator: look inside the running application
+  endpoints:
+    web:
+      exposure:
+        include: health,info,beans,mappings,env,conditions,configprops,metrics,loggers
+  endpoint:
+    health:
+      show-details: always
+
+demo:                                            # bound to DemoProperties (@ConfigurationProperties)
+  greeting: Hello from the default profile
+  max-page-size: 20
+
+logging:
+  level:
+    demo: DEBUG
+    flow: INFO                                   # the "flow" logger prints the request journey
+    org.hibernate.SQL: DEBUG                     # prints every SQL statement Hibernate sends to the database

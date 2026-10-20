@@ -1,0 +1,7 @@
+# Loaded ON TOP of application.yml when you start with:  --spring.profiles.active=prod
+demo:
+  greeting: Hello from the PROD profile
+  max-page-size: 5
+logging:
+  level:
+    org.hibernate.SQL: INFO

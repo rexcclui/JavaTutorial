@@ -65,6 +65,10 @@ Tick them off as you go.
 
 Suggested order: core -> collections -> algorithms -> data structures -> modern -> concurrency -> patterns -> design -> jvm.
 
+## A real Spring Boot server to play with
+
+`./serve.sh` starts a small REST API (Spring Boot + JPA + H2) in `spring-demo/`; call it with `curl`, watch the request flow and SQL in the console, change the code and see what breaks. Guide with experiments: [docs/spring-server.md](docs/spring-server.md).
+
 ## Adding your own exercise
 
 1. Add a stub in `exercises/java/prep/<category>/Foo.java` and the working version in `solutions/java/prep/<category>/Foo.java` (same package and class name, same public API).

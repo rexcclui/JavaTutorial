@@ -1,6 +1,6 @@
 # Multiple-choice Java questions (tech-test practice)
 
-35 questions, each with the answer stated up front and runnable code that lets you SEE why.
+50 questions (Q01-Q35 core Java, Q36-Q50 Spring), each with the answer stated up front and runnable code that lets you SEE why.
 
 ```bash
 ./run.sh mcq            # all questions: one summary line per question
@@ -58,6 +58,28 @@ Read the class comment first, run the question, read the printed output, then op
 | Q34 | `byte` arithmetic and compound assignment | D |
 | Q35 | Overload resolution with `null` | B |
 
+### Spring (real Spring containers run inside the tests; no web server or database needed)
+
+| # | Topic | Answer |
+|---|---|---|
+| Q36 | Default bean scope (singleton per container) | B |
+| Q37 | Two beans of one type: `NoUniqueBeanDefinitionException`, `@Primary`, `@Qualifier` | C |
+| Q38 | Bean lifecycle: constructor, injection, `@PostConstruct`, `@PreDestroy` | D |
+| Q39 | `@Configuration` proxies: `@Bean` methods calling each other | A |
+| Q40 | Prototype bean injected into a singleton | B |
+| Q41 | Proxy self-invocation (the `@Transactional` trap) | C |
+| Q42 | Circular dependencies (constructor vs field injection) | D |
+| Q43 | `@Component` / `@Service` / `@Repository` / `@Controller` | A |
+| Q44 | Default bean names | B |
+| Q45 | `@Value("${x:default}")` | C |
+| Q46 | `@SpringBootApplication` is made of... | D |
+| Q47 | `@Controller` vs `@RestController` (MockMvc) | A |
+| Q48 | `@PathVariable` vs `@RequestParam` (MockMvc) | B |
+| Q49 | `@Transactional` rollback rules (checked exceptions commit) | C |
+| Q50 | Constructor injection without `@Autowired` | A |
+
+Likely Spring topics NOT yet covered: `@Profile`, `@Conditional` / auto-configuration internals, Spring Data repositories, `@ExceptionHandler` / `@ControllerAdvice`, `@Async`, `@Cacheable`, bean validation, Spring Security basics. Ask for any of them.
+
 ## Tips for real multiple-choice tests
 - Read ALL options before choosing. Distractors are usually a true fact attached to the wrong method (Q08 option B: `IllegalThreadStateException` is real, but it comes from calling `start()` twice).
 - "Always", "never", "only" in an option are red flags (Q10 option B: "always works").
@@ -66,10 +88,10 @@ Read the class comment first, run the question, read the printed output, then op
 - Questions can contain small factual mistakes (Q01 says Java 11; `teeing` arrived in Java 12). Choose the best-fitting option and move on.
 
 ## Add your own question
-1. Copy any `QNN...Test.java` and rename it `Q36YourTopicTest.java` (the class name must end with `Test`).
+1. Copy any `QNN...Test.java` and rename it `Q51YourTopicTest.java` (the class name must end with `Test`).
 2. Write the question, options, `ANSWER:` and `WHY:` in the class comment.
 3. Add a `demo_` test that prints a trace with `McqSupport.show(...)`, and one test per option that proves it with code.
    - `McqSupport.attempt("label", () -> ...)` prints "OK" or the exception name.
    - `McqSupport.compileErrors("Snippet", source)` returns the compiler's error messages (empty = compiles).
 4. Put a `// PURPOSE:` comment above every test.
-5. Run `./run.sh mcq Q36`.
+5. Run `./run.sh mcq Q51`.
